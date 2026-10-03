@@ -1,0 +1,6 @@
+Librerías de terceros incluidas en GEO Inspecciones RM (sin modificaciones):
+- Leaflet 1.9.4 — BSD 2-Clause — https://leafletjs.com
+- Leaflet.markercluster 1.5.3 — MIT — https://github.com/Leaflet/Leaflet.markercluster
+- SheetJS Community Edition (xlsx) 0.18.5 — Apache 2.0 — https://sheetjs.com
+- JSZip 3.10.1 — MIT o GPLv3 (se usa bajo MIT) — https://stuk.github.io/jszip
+Mapas base: © colaboradores de OpenStreetMap (ODbL). Geocodificación: Nominatim/OpenStreetMap.

@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GEO Inspecciones RM</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1B2B34">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GEO RM">
+<meta name="description" content="Inspecciones de terreno en la Región Metropolitana: Excel, mapa, ubicaciones reales, KML/KMZ.">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+#btnInstalar{display:none;border-color:var(--seguridad)!important;color:var(--seguridad)!important}
+@media (display-mode: standalone){header{padding-top:max(10px,env(safe-area-inset-top))}}
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lib/leaflet.css">
+<link rel="stylesheet" href="lib/MarkerCluster.css">
+<link rel="stylesheet" href="lib/MarkerCluster.Default.css">
+<style>
+:root{
+  --papel:#EEF1EC; --panel:#FFFFFF; --tinta:#1B2B34; --suave:#5B6B73; --linea:#CBD3CF;
+  --seguridad:#F2B705; --plano:#2B5F8A; --ok:#2E7D4F; --warn:#B7791F; --err:#B83227;
+  --sombra:0 1px 0 rgba(27,43,52,.08);
+  font-family:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+:root[data-theme="dark"]{
+  --papel:#16232B; --panel:#1E2F39; --tinta:#E6ECE8; --suave:#9FB0B8; --linea:#34505E;
+  --plano:#7FB3DB; --ok:#5CC28A; --warn:#E3B04B; --err:#F07466;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --papel:#16232B; --panel:#1E2F39; --tinta:#E6ECE8; --suave:#9FB0B8; --linea:#34505E;
+    --plano:#7FB3DB; --ok:#5CC28A; --warn:#E3B04B; --err:#F07466;
+  }
+}
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0;background:var(--papel);color:var(--tinta);font-size:15px;line-height:1.45}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--seguridad);outline-offset:2px}
+header{display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--tinta);color:#fff;position:sticky;top:env(safe-area-inset-top,0px);z-index:1000}
+:root[data-theme="dark"] header{background:#0E171D}
+header h1{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:1.45rem;margin:0;letter-spacing:.01em}
+header .marca{display:inline-block;width:14px;height:14px;background:var(--seguridad);transform:rotate(45deg);margin-right:4px}
+header .archivo{color:#C9D6DC;font-size:.9rem;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header button{background:transparent;border:1px solid #5E7682;color:#fff;border-radius:6px;padding:6px 10px}
+.app{display:grid;grid-template-columns:340px 1fr;gap:0;min-height:calc(100vh - 54px)}
+aside{background:var(--panel);border-right:1px solid var(--linea);overflow:auto;max-height:calc(100vh - 54px);position:sticky;top:54px}
+main{min-width:0;display:flex;flex-direction:column}
+details.paso{border-bottom:1px solid var(--linea)}
+details.paso>summary{list-style:none;padding:12px 16px;font-weight:600;display:flex;gap:10px;align-items:center;cursor:pointer}
+details.paso>summary::-webkit-details-marker{display:none}
+.num{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;width:24px;height:24px;border-radius:50%;border:2px solid var(--tinta);display:grid;place-items:center;font-size:.85rem;flex:none}
+details.paso[data-listo="1"] .num{background:var(--seguridad);border-color:var(--seguridad);color:#1B2B34}
+.cuerpo{padding:0 16px 16px}
+label{display:block;font-size:.82rem;color:var(--suave);margin:10px 0 3px}
+select,input[type=text],input[type=search],input[type=number],textarea{width:100%;padding:7px 9px;border:1px solid var(--linea);border-radius:6px;background:var(--papel)}
+.zona{border:2px dashed var(--linea);border-radius:10px;padding:22px 12px;text-align:center;background:var(--papel)}
+.zona.sobre{border-color:var(--seguridad);background:color-mix(in srgb,var(--seguridad) 12%,var(--papel))}
+.zona strong{display:block;font-size:1.05rem;margin-bottom:4px}
+.btn{border:1px solid var(--linea);background:var(--panel);border-radius:6px;padding:8px 12px;font-weight:600}
+.btn.prim{background:var(--seguridad);border-color:var(--seguridad);color:#1B2B34}
+.btn.peligro{color:var(--err);border-color:var(--err)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.fila{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.fila .btn{flex:1 1 auto}
+.nota{font-size:.8rem;color:var(--suave);margin:8px 0 0}
+.aviso-priv{font-size:.8rem;border-left:3px solid var(--warn);padding:6px 9px;background:color-mix(in srgb,var(--warn) 10%,transparent);margin-top:10px}
+.prog{height:8px;background:var(--linea);border-radius:4px;overflow:hidden;margin-top:8px;display:none}
+.prog>div{height:100%;width:0;background:var(--plano);transition:width .3s}
+.cifras{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--linea);background:var(--panel)}
+.cifra{padding:10px 14px;border-right:1px solid var(--linea)}
+.cifra:last-child{border-right:0}
+.cifra b{display:block;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.9rem;font-weight:700;line-height:1}
+.cifra span{font-size:.8rem;color:var(--suave)}
+.cifra.real b{color:#7A4FB5} :root[data-theme="dark"] .cifra.real b{color:#B89BE6}
+.cifra.err b{color:var(--err)} .cifra.geo b{color:var(--plano)} .cifra.ok b{color:var(--ok)}
+.mapa-wrap{position:relative;flex:1;min-height:440px}
+#mapa{position:absolute;inset:0}
+.leyenda{position:absolute;right:10px;bottom:22px;z-index:500;background:var(--panel);border:1px solid var(--linea);border-radius:8px;padding:8px 10px;font-size:.82rem;max-height:45%;overflow:auto;min-width:170px}
+.leyenda h4{margin:0 0 6px;font-size:.85rem}
+.leyenda .it{display:flex;align-items:center;gap:7px;margin:3px 0}
+.leyenda input[type=color]{width:20px;height:20px;border:0;padding:0;background:none;cursor:pointer}
+.leyenda .c{margin-left:auto;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:600}
+.vacio{position:absolute;inset:0;display:grid;place-items:center;z-index:400;pointer-events:none}
+.vacio p{background:var(--panel);padding:14px 18px;border-radius:8px;border:1px solid var(--linea);max-width:340px;text-align:center}
+section.bloque{background:var(--panel);border-top:1px solid var(--linea);padding:14px 18px}
+section.bloque h2{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.25rem;margin:0 0 10px}
+.barra-tabla{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.barra-tabla input{max-width:300px}
+.tabla-wrap{overflow:auto;max-height:420px;border:1px solid var(--linea);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{padding:6px 8px;border-bottom:1px solid var(--linea);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--papel);cursor:pointer;user-select:none;font-weight:600}
+td.est{white-space:normal;min-width:220px}
+tr:hover td{background:color-mix(in srgb,var(--seguridad) 8%,transparent)}
+.chip{display:inline-block;padding:1px 7px;border-radius:10px;font-size:.75rem;font-weight:600;border:1px solid}
+.chip.EXCEL{color:var(--ok);border-color:var(--ok)} .chip.GEOCODIFICADA{color:var(--plano);border-color:var(--plano)}
+.chip.MANUAL{color:var(--warn);border-color:var(--warn)} .chip.ERROR,.chip.NO\ ENCONTRADA,.chip.NO\ DISPONIBLE{color:var(--err);border-color:var(--err)}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+.stat h3{font-size:.9rem;margin:0 0 6px}
+.bar{display:grid;grid-template-columns:120px 1fr 40px;gap:6px;align-items:center;font-size:.82rem;margin:3px 0}
+.bar i{display:block;height:10px;background:var(--plano);border-radius:2px}
+.bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.errores li{margin:4px 0;font-size:.88rem}
+.errores button{font-size:.75rem;padding:2px 7px;margin-left:6px}
+dialog{border:1px solid var(--linea);border-radius:10px;background:var(--panel);color:var(--tinta);max-width:520px;width:92vw}
+dialog::backdrop{background:rgba(15,25,30,.55)}
+dialog dl{display:grid;grid-template-columns:1fr auto;gap:4px 14px;margin:10px 0}
+dialog dt{color:var(--suave)} dialog dd{margin:0;font-weight:600;text-align:right}
+.resultado{border-left:4px solid var(--ok);padding:8px 12px;background:color-mix(in srgb,var(--ok) 10%,transparent);margin-top:10px;display:none}
+.popup table{font-size:.8rem} .popup td{padding:2px 6px;white-space:normal;border:0} .popup h4{margin:0 0 4px}
+.cand{max-width:240px}
+td.real{white-space:normal;min-width:200px}
+td.real a{font-weight:600}
+.obs-ter{color:#7A4FB5;font-weight:600} :root[data-theme="dark"] .obs-ter{color:#B89BE6}
+.btn.terreno{border-color:#7A4FB5;color:#7A4FB5}
+:root[data-theme="dark"] .btn.terreno{border-color:#B89BE6;color:#B89BE6}
+#dlgTerreno textarea{min-height:58px;resize:vertical}
+.ter-orig{font-size:.85rem;background:var(--papel);border:1px solid var(--linea);border-radius:6px;padding:8px 10px;margin:8px 0}
+.ter-link{word-break:break-all;font-size:.8rem}
+.sin-red{display:none;background:var(--err);color:#fff;border-radius:12px;padding:2px 9px;font-size:.78rem;font-weight:600;white-space:nowrap}
+body.offline .sin-red{display:inline-block}
+.pend-chip{display:none;background:var(--seguridad);color:#1B2B34;border-radius:12px;padding:2px 9px;font-size:.78rem;font-weight:700;white-space:nowrap}
+.pend-chip.on{display:inline-block}
+.caja-pend{border:1px solid var(--seguridad);border-radius:8px;padding:10px;margin:10px 0;background:color-mix(in srgb,var(--seguridad) 10%,transparent)}
+.caja-pend b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.4rem}
+.toast button{margin-left:10px;background:var(--seguridad);color:#1B2B34;border:0;border-radius:6px;padding:4px 10px;font-weight:700}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--tinta);color:var(--papel);padding:10px 16px;border-radius:8px;z-index:2000;display:none;max-width:90vw;text-align:center}
+.marcando #mapa{cursor:crosshair}
+/* ---- ruta y avance de inspección */
+.avance{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--linea);font-size:.88rem}
+.avance[hidden]{display:none}
+.avance .e{display:inline-flex;align-items:center;gap:6px;font-weight:600;border:1px solid var(--linea);border-radius:14px;padding:3px 10px;background:var(--papel)}
+.avance .e.on{border-color:var(--tinta);box-shadow:inset 0 0 0 1px var(--tinta)}
+.avance .e b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.1rem}
+.punto{width:12px;height:12px;border-radius:50%;display:inline-block;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.3);flex:none}
+.avance .barra{flex:1 1 140px;min-width:120px;height:9px;border-radius:5px;background:var(--linea);overflow:hidden;display:flex}
+.avance .barra span{height:100%}
+.avance .km{color:var(--suave);font-size:.82rem;flex-basis:100%}
+.pinw{background:none;border:0}
+.pin{display:grid;place-items:center;height:24px;box-sizing:border-box;border-radius:12px;border:2px solid #fff;color:#fff;font:700 12px/1 "Barlow Condensed","Arial Narrow",sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.pin.duda{color:#1B2B34}
+.clu{display:grid;place-items:center;border-radius:50%;background:#1B2B34;color:#fff;border:4px solid #fff;box-sizing:border-box;font:700 13px/1 "Barlow Condensed","Arial Narrow",sans-serif;box-shadow:0 1px 5px rgba(0,0,0,.45)}
+.pin.real{border:3px solid #7A4FB5}
+.chip.i-pend{color:#D93025;border-color:#D93025} .chip.i-ok{color:var(--ok);border-color:var(--ok)}
+.chip.i-duda{color:#8A5A00;border-color:#F5A400;background:color-mix(in srgb,#F5A400 18%,transparent)}
+:root[data-theme="dark"] .chip.i-duda{color:#F5C452}
+input.ord{width:60px;padding:3px 5px;border:1px solid var(--linea);border-radius:5px;background:var(--papel)}
+.pop-est{display:flex;align-items:center;gap:8px;margin:0 0 6px}
+.motivos{margin:2px 0 6px;padding-left:18px;font-size:.8rem;color:#8A5A00}
+:root[data-theme="dark"] .motivos{color:#F5C452}
+.chk{display:flex;align-items:center;gap:8px;color:var(--tinta);font-size:.92rem;margin:10px 0 0}
+.chk input{width:18px;height:18px}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--linea)}
+  .cifras{grid-template-columns:repeat(3,1fr)}
+  #dlgTerreno{max-width:100vw;width:100vw;margin:auto 0 0;border-radius:12px 12px 0 0}
+  .mapa-wrap{min-height:60vh}
+  header .archivo{display:none}
+  header h1{font-size:1.2rem;white-space:nowrap;flex:1}
+  header .txt{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="marca"></span> GEO Inspecciones RM</h1>
+  <div class="archivo" id="hdrArchivo">Santiago y Región Metropolitana · Excel → mapa → KML/KMZ</div>
+  <span class="sin-red" id="chipRed" role="status">Sin conexión</span>
+  <span class="pend-chip" id="chipPend" title="Registros guardados que aún no se han enviado"></span>
+  <button id="btnTema" title="Cambiar tema">🌙</button>
+  <button id="btnLimpiar" title="Reiniciar todo">🗑 <span class="txt">Limpiar proyecto</span></button>
+</header>
+
+<div class="app">
+<aside>
+  <details class="paso" id="p1" open>
+    <summary><span class="num">1</span> Cargar archivo</summary>
+    <div class="cuerpo">
+      <div class="zona" id="zona">
+        <strong>📂 Arrastra tu Excel aquí</strong>
+        <span class="nota">.xlsx, .xls o .csv · se procesa en tu equipo</span>
+        <div class="fila"><button class="btn prim" id="btnElegir">Seleccionar archivo</button></div>
+        <input type="file" id="archivo" accept=".xlsx,.xls,.csv" hidden>
+      </div>
+      <div class="fila"><button class="btn" id="btnDemo">Cargar ejemplo (DEMO)</button></div>
+      <label for="selHoja">Hoja</label>
+      <select id="selHoja" disabled></select>
+      <p class="nota" id="infoArchivo"></p>
+    </div>
+  </details>
+
+  <details class="paso" id="p2">
+    <summary><span class="num">2</span> Columnas detectadas</summary>
+    <div class="cuerpo">
+      <label for="cLat">Latitud</label><select id="cLat"></select>
+      <label for="cLon">Longitud</label><select id="cLon"></select>
+      <label for="cCoord">Coordenadas en una columna</label><select id="cCoord"></select>
+      <label for="cDir">Dirección</label><select id="cDir"></select>
+      <label for="cCom">Comuna</label><select id="cCom"></select>
+      <label for="cEst">Estado</label><select id="cEst"></select>
+      <label for="cAlt">Altitud</label><select id="cAlt"></select>
+      <label for="tplNombre">Nombre del punto (usa {COLUMNA})</label>
+      <input type="text" id="tplNombre" placeholder="{N° POSTE} - {COMUNA} - {ESTADO}">
+      <div class="fila"><button class="btn prim" id="btnProcesar" disabled>Validar coordenadas</button></div>
+    </div>
+  </details>
+
+  <details class="paso" id="p3">
+    <summary><span class="num">3</span> Ubicar direcciones</summary>
+    <div class="cuerpo">
+      <p class="nota" id="infoGeo">Las filas sin coordenadas y con dirección se pueden geocodificar con OpenStreetMap (Nominatim), una consulta por segundo.</p>
+      <div class="aviso-priv">Las direcciones usadas para geocodificar se envían al proveedor cartográfico (OpenStreetMap/Nominatim). El resto del Excel no sale de tu equipo.</div>
+      <div class="fila">
+        <button class="btn prim" id="btnGeo" disabled>Geocodificar direcciones</button>
+        <button class="btn" id="btnGeoStop" hidden>Detener</button>
+      </div>
+      <div class="prog" id="prog"><div></div></div>
+      <p class="nota" id="geoEstado"></p>
+      <div class="fila"><button class="btn" id="btnInvertir" disabled>Corregir inversiones detectadas</button></div>
+      <p class="nota">Las coordenadas invertidas solo se corrigen si presionas este botón.</p>
+    </div>
+  </details>
+
+  <details class="paso" id="p4">
+    <summary><span class="num">4</span> Filtrar y agrupar</summary>
+    <div class="cuerpo">
+      <label for="fComuna">Comuna</label><select id="fComuna"></select>
+      <label for="fEstado">Estado (columna del Excel)</label><select id="fEstado"></select>
+      <label for="fFuente">Fuente de coordenada</label><select id="fFuente"></select>
+      <label for="fReal">Ubicación real de terreno</label>
+      <select id="fReal"><option value="">Todas</option><option value="si">Con ubicación real</option><option value="no">Sin ubicación real registrada</option><option value="obs">Con observación de terreno</option></select>
+      <label for="fInsp">Avance de inspección</label>
+      <select id="fInsp"><option value="">Todos</option><option value="pend">🔴 Pendientes</option><option value="ok">🟢 Realizados</option><option value="duda">🟡 Con duda</option></select>
+      <label for="fCol">Otra columna</label>
+      <select id="fCol"></select>
+      <select id="fVal" style="margin-top:6px" disabled></select>
+      <label for="gAgrupar">Carpetas KML agrupadas por</label><select id="gAgrupar"></select>
+      <label><input type="checkbox" id="chkLinea" checked> Mostrar línea de la ruta (según N° de orden)</label>
+      <div class="fila"><button class="btn" id="btnQuitarFiltros">Quitar filtros</button></div>
+    </div>
+  </details>
+
+  <details class="paso" id="pR">
+    <summary><span class="num">5</span> Orden de ruta y avance</summary>
+    <div class="cuerpo">
+      <p class="nota" id="infoRuta">Cada punto lleva un N° de visita en el mapa y en la tabla. Para cambiarlo a mano, edita el N° en la tabla o en la ficha del punto.</p>
+      <label for="cSec">Columna de secuencia del Excel</label><select id="cSec"></select>
+      <label for="rInicio">Punto de partida</label>
+      <select id="rInicio"><option value="primero">Primer punto de la ruta actual</option><option value="gps">Mi ubicación GPS</option><option value="base">Base o bodega (coordenadas)</option></select>
+      <input type="text" id="rBase" placeholder="-33.437800, -70.650500" inputmode="decimal" autocomplete="off" hidden style="margin-top:6px">
+      <label class="chk"><input type="checkbox" id="rDejarHechos" checked> Dejar primero los puntos ya realizados</label>
+      <div class="fila">
+        <button class="btn prim" id="btnOptimizar" disabled>⚡ Optimizar orden</button>
+        <button class="btn" id="btnOrdenSec" disabled>Usar secuencia</button>
+      </div>
+      <p class="nota">Si hay filtros activos (por ejemplo una comuna o solo pendientes), se ordenan solo los puntos visibles y quedan primeros en la ruta.</p>
+      <div class="fila">
+        <button class="btn" id="btnSiguiente" disabled>▶ Siguiente pendiente</button>
+        <button class="btn" id="btnNavegar" disabled>🧭 Navegar próximos 10</button>
+      </div>
+      <label for="rColor">Colorear puntos por</label>
+      <select id="rColor"><option value="insp">Avance de inspección (rojo, verde, ámbar)</option><option value="estado">Columna Estado del Excel</option></select>
+      <details style="margin-top:12px"><summary class="nota" style="cursor:pointer">⚙ Criterios para marcar un punto «con duda»</summary>
+        <label for="uDist">Desplazamiento máximo aceptado entre el documento y terreno (m)</label>
+        <input type="number" id="uDist" min="10" step="10" value="150">
+        <label for="uPrec">Precisión GPS mínima aceptada (± m)</label>
+        <input type="number" id="uPrec" min="5" step="5" value="30">
+        <p class="nota">En comunas rurales (Melipilla, Paine, Tiltil, Alhué) conviene subir el desplazamiento a 300–500 m.</p>
+      </details>
+    </div>
+  </details>
+
+  <details class="paso" id="pT">
+    <summary><span class="num">6</span> Ubicaciones reales de terreno</summary>
+    <div class="cuerpo">
+      <p class="nota" id="infoTerreno">Usa el botón 📍 de cada registro (en la tabla o en el mapa) para guardar la dirección o el punto encontrado en terreno.</p>
+      <div class="caja-pend">
+        <div><b id="nPend">0</b> pendientes de enviar</div>
+        <p class="nota" id="infoPend" style="margin:2px 0 8px">Todo lo que guardas queda en este equipo, con o sin señal.</p>
+        <div class="fila" style="margin-top:0">
+          <button class="btn prim" id="btnEnviarPend" disabled>📤 Enviar pendientes</button>
+        </div>
+      </div>
+      <label><input type="checkbox" id="chkReal" checked> Mostrar y exportar el punto real cuando exista</label>
+      <div class="fila">
+        <button class="btn prim" id="btnXlsReal" disabled>Excel con ubicación real</button>
+        <button class="btn" id="btnXlsSoloReal" disabled>Solo registradas</button>
+      </div>
+      <div class="fila">
+        <button class="btn" id="btnXlsVBA" disabled>📊 Excel con dashboard + macros (VBA)</button>
+      </div>
+      <p class="nota">El Excel conserva todas tus columnas y agrega, junto a la dirección original, el N° de ruta, el estado de inspección, «Ubicación maps» (link de Google Maps de cada punto) y la ubicación real. El botón 📊 descarga un .zip con un Excel de dashboard y el módulo de macros para importar en Excel de Windows.</p>
+      <label>Respaldo de terreno</label>
+      <div class="fila">
+        <button class="btn" id="btnRespaldo" disabled>Descargar respaldo</button>
+        <button class="btn" id="btnRestaurar">Restaurar respaldo</button>
+        <input type="file" id="respArchivo" accept=".json" hidden>
+      </div>
+      <p class="nota">Lo que registras se guarda automáticamente en este equipo. El respaldo sirve para pasarlo del celular al computador.</p>
+    </div>
+  </details>
+
+  <details class="paso" id="p5">
+    <summary><span class="num">7</span> Exportar a Google Earth</summary>
+    <div class="cuerpo">
+      <p class="nota" id="infoExport">Carga un archivo para habilitar la exportación.</p>
+      <div class="fila">
+        <button class="btn prim" id="btnExpTodo" disabled>Exportar todo</button>
+        <button class="btn" id="btnExpFiltro" disabled>Exportar filtrados</button>
+      </div>
+      <div class="fila">
+        <button class="btn" id="btnErrCsv" disabled>Descargar errores CSV</button>
+      </div>
+      <div class="resultado" id="resultado"></div>
+      <label>Configuración</label>
+      <div class="fila">
+        <button class="btn" id="btnCfgGuardar" disabled>Guardar JSON</button>
+        <button class="btn" id="btnCfgCargar">Cargar JSON</button>
+        <input type="file" id="cfgArchivo" accept=".json" hidden>
+      </div>
+    </div>
+  </details>
+</aside>
+
+<main>
+  <div class="cifras">
+    <div class="cifra"><b id="kTotal">0</b><span>Total registros</span></div>
+    <div class="cifra ok"><b id="kGps">0</b><span>Coordenadas válidas</span></div>
+    <div class="cifra geo"><b id="kGeo">0</b><span>Geocodificados</span></div>
+    <div class="cifra"><b id="kSin">0</b><span>Sin ubicación</span></div>
+    <div class="cifra real"><b id="kReal">0</b><span>Ubicación real</span></div>
+    <div class="cifra err"><b id="kErr">0</b><span>Para revisar</span></div>
+  </div>
+  <div class="avance" id="avance" hidden>
+    <button type="button" class="e" data-f="pend" title="Ver solo pendientes"><i class="punto" style="background:#D93025"></i><b id="aPend">0</b> pendientes</button>
+    <button type="button" class="e" data-f="ok" title="Ver solo realizados"><i class="punto" style="background:#2E7D4F"></i><b id="aOk">0</b> realizados</button>
+    <button type="button" class="e" data-f="duda" title="Ver solo con duda"><i class="punto" style="background:#F5A400"></i><b id="aDuda">0</b> con duda</button>
+    <div class="barra" id="aBarra" aria-hidden="true"></div><b id="aPct">0%</b>
+    <span class="km" id="aKm"></span>
+  </div>
+  <div class="mapa-wrap">
+    <div id="mapa"></div>
+    <div class="vacio" id="vacio"><p>Carga un Excel con coordenadas o direcciones de la Región Metropolitana para ver los puntos aquí.</p></div>
+    <div class="leyenda" id="leyenda" hidden></div>
+  </div>
+
+  <section class="bloque">
+    <h2>Registros</h2>
+    <div class="barra-tabla">
+      <input type="search" id="buscar" placeholder="Buscar en todas las columnas">
+      <label style="margin:0"><input type="checkbox" id="soloErr"> Solo con problemas</label>
+      <span class="nota" id="infoTabla" style="margin:0"></span>
+    </div>
+    <div class="tabla-wrap"><table id="tabla"><thead></thead><tbody></tbody></table></div>
+    <div class="fila"><button class="btn" id="btnMas" hidden>Mostrar más filas</button></div>
+  </section>
+
+  <section class="bloque">
+    <h2>⚠ Registros con problemas</h2>
+    <ul class="errores" id="listaErr"><li class="nota">Sin datos todavía.</li></ul>
+  </section>
+
+  <section class="bloque">
+    <h2>Estadísticas</h2>
+    <div class="stats" id="stats"></div>
+  </section>
+</main>
+</div>
+
+<dialog id="dlgTerreno">
+  <h2 style="font-family:'Barlow Condensed','Arial Narrow',sans-serif;margin:0">📍 Ubicación real y observación</h2>
+  <p style="margin:4px 0 0;font-weight:600" id="tNombre"></p>
+  <div class="ter-orig" id="tOrig"></div>
+  <label for="tDir">Dirección encontrada en terreno</label>
+  <input type="text" id="tDir" placeholder="Ej.: Av. Grecia 1250, Ñuñoa" autocomplete="off">
+  <label for="tCoord">Coordenadas reales (latitud, longitud)</label>
+  <input type="text" id="tCoord" placeholder="-33.456789, -70.597123" inputmode="decimal" autocomplete="off">
+  <div class="fila">
+    <button class="btn prim" id="btnGPS">Usar mi GPS</button>
+    <button class="btn" id="btnMarcar">Marcar en el mapa</button>
+    <button class="btn" id="btnDirGPS">Obtener dirección del punto</button>
+  </div>
+  <p class="nota" id="tGpsInfo"></p>
+  <label for="tObs">Observación de terreno</label>
+  <textarea id="tObs" placeholder="Ej.: numeración cambiada, poste en pasaje lateral"></textarea>
+  <label class="chk"><input type="checkbox" id="tInsp" checked> ✔ Inspección realizada</label>
+  <label class="chk"><input type="checkbox" id="tDudaChk"> ⚠ Tengo dudas con este punto</label>
+  <input type="text" id="tDuda" placeholder="Motivo (ej.: no se encontró el poste, numeración no coincide)" autocomplete="off" hidden style="margin-top:6px">
+  <p class="nota">Si guardas una ubicación real, el punto queda como realizado (verde) salvo que la app detecte algo para revisar (ámbar).</p>
+  <p class="nota">Link que se generará:</p>
+  <p class="ter-link" id="tLink">—</p>
+  <div class="fila">
+    <button class="btn peligro" id="btnBorrarT">Borrar</button>
+    <button class="btn" id="btnCerrarT">Cancelar</button>
+    <button class="btn prim" id="btnGuardarT">Guardar</button>
+  </div>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<dialog id="dlgRevision">
+  <h2 style="font-family:'Barlow Condensed','Arial Narrow',sans-serif;margin:0">Revisión final</h2>
+  <dl id="dlRevision"></dl>
+  <p class="nota" id="txtRevision"></p>
+  <div class="fila">
+    <button class="btn" id="btnCancelarExp">Volver</button>
+    <button class="btn prim" id="btnGenerar">🚀 Generar KML + KMZ</button>
+  </div>
+</dialog>
+
+<script src="lib/leaflet.js"></script>
+<script src="lib/leaflet.markercluster.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/jszip.min.js"></script>
+<script>
+"use strict";
+/* ============================================================ datos RM */
+// Centro urbano aproximado [lat, lon], provincia y radio de aceptación (km). Lista ampliable.
+const COMUNAS_RM = {
+ "Santiago":[-33.4378,-70.6505,"Santiago"],"Cerrillos":[-33.4970,-70.7120,"Santiago"],"Cerro Navia":[-33.4250,-70.7350,"Santiago"],
+ "Conchalí":[-33.3840,-70.6750,"Santiago"],"El Bosque":[-33.5620,-70.6760,"Santiago"],"Estación Central":[-33.4590,-70.6980,"Santiago"],
+ "Huechuraba":[-33.3670,-70.6330,"Santiago"],"Independencia":[-33.4170,-70.6650,"Santiago"],"La Cisterna":[-33.5300,-70.6630,"Santiago"],
+ "La Florida":[-33.5230,-70.5980,"Santiago",18],"La Granja":[-33.5410,-70.6250,"Santiago"],"La Pintana":[-33.5850,-70.6340,"Santiago"],
+ "La Reina":[-33.4450,-70.5400,"Santiago"],"Las Condes":[-33.4150,-70.5830,"Santiago"],"Lo Barnechea":[-33.3500,-70.5180,"Santiago",35],
+ "Lo Espejo":[-33.5210,-70.6900,"Santiago"],"Lo Prado":[-33.4440,-70.7250,"Santiago"],"Macul":[-33.4910,-70.5990,"Santiago"],
+ "Maipú":[-33.5100,-70.7570,"Santiago"],"Ñuñoa":[-33.4560,-70.5970,"Santiago"],"Pedro Aguirre Cerda":[-33.4930,-70.6780,"Santiago"],
+ "Peñalolén":[-33.4860,-70.5440,"Santiago",20],"Providencia":[-33.4320,-70.6090,"Santiago"],"Pudahuel":[-33.4400,-70.7600,"Santiago",18],
+ "Quilicura":[-33.3600,-70.7300,"Santiago"],"Quinta Normal":[-33.4280,-70.6970,"Santiago"],"Recoleta":[-33.4060,-70.6400,"Santiago"],
+ "Renca":[-33.4050,-70.7280,"Santiago"],"San Joaquín":[-33.4960,-70.6280,"Santiago"],"San Miguel":[-33.4970,-70.6510,"Santiago"],
+ "San Ramón":[-33.5370,-70.6420,"Santiago"],"Vitacura":[-33.3900,-70.5720,"Santiago"],
+ "Puente Alto":[-33.6110,-70.5760,"Cordillera",18],"Pirque":[-33.6580,-70.5550,"Cordillera",25],"San José de Maipo":[-33.6420,-70.3530,"Cordillera",65],
+ "Colina":[-33.2010,-70.6700,"Chacabuco",25],"Lampa":[-33.2860,-70.8760,"Chacabuco",20],"Tiltil":[-33.0830,-70.9280,"Chacabuco",25],
+ "San Bernardo":[-33.5920,-70.6990,"Maipo"],"Buin":[-33.7320,-70.7430,"Maipo"],"Calera de Tango":[-33.6400,-70.7750,"Maipo"],"Paine":[-33.8070,-70.7400,"Maipo",20],
+ "Talagante":[-33.6640,-70.9290,"Talagante"],"El Monte":[-33.6790,-71.0170,"Talagante"],"Isla de Maipo":[-33.7530,-70.8900,"Talagante"],
+ "Padre Hurtado":[-33.5720,-70.8150,"Talagante"],"Peñaflor":[-33.6060,-70.8760,"Talagante"],
+ "Melipilla":[-33.6890,-71.2150,"Melipilla",25],"Alhué":[-34.0350,-71.0980,"Melipilla",25],"Curacaví":[-33.4060,-71.1330,"Melipilla",20],
+ "María Pinto":[-33.5150,-71.1200,"Melipilla",20],"San Pedro":[-33.8950,-71.4620,"Melipilla",25]
+};
+const ALIAS = {stgo:"Santiago",santiagocentro:"Santiago",pac:"Pedro Aguirre Cerda",tiltl:"Tiltil",estcentral:"Estación Central",sanbdo:"San Bernardo"};
+const SIN = {
+ lat:["latitud","latitude","lat","y","coordy","coordenaday","gpslat","latitudgps"],
+ lon:["longitud","longitude","lon","lng","long","x","coordx","coordenadax","gpslon","gpslong","longitudgps"],
+ coord:["coordenadas","coordenada","coord","coords","latlon","latlong","gps","puntogps"],
+ dir:["direccion","domicilio","ubicacion","calle","direccioncliente","direccioninstalacion","address"],
+ com:["comuna","municipio","localidad","comunacliente","comunainstalacion"],
+ est:["estado","status","estadoot","estadoinspeccion","situacion"],
+ alt:["altitud","elevacion","cota","alt","altura","msnm"]
+};
+const COLOR_EST = {PENDIENTE:"#D93025",ASIGNADA:"#F57C00","EN PROCESO":"#F2B705",FINALIZADA:"#2E7D4F","SIN RESPUESTA":"#7D8B92"};
+const PALETA = ["#2B5F8A","#8E44AD","#C2185B","#00897B","#5D4037","#3949AB","#7CB342","#6D4C41"];
+const BBOX_RM = {s:-34.30,n:-32.90,o:-71.75,e:-69.75};
+// Avance de inspección: rojo pendiente, verde realizado, ámbar con duda
+const INSP = {pend:{c:"#D93025",t:"Pendiente"},ok:{c:"#2E7D4F",t:"Realizado"},duda:{c:"#F5A400",t:"Con duda"}};
+const SIN_SEC = ["secuencia","sec","nsecuencia","nsec","nrosecuencia","secuenciaruta","orden","ordenruta","ordenvisita","nruta","correlativo","ncorrelativo","item"];
+const FACTOR_VIAL = 1.3, VEL_KMH = 30;   // línea recta → camino; tránsito urbano promedio en Santiago
+
+/* ============================================================ estado */
+const S = {wb:null, nombre:"", hoja:"", headers:[], filas:[], recs:[], cfg:{}, colores:{}, filtrados:[], pagina:300,
+           orden:{col:"ordenRuta",asc:true}, geoParar:false, ultimaExport:null, terreno:{}, editando:null, marcando:null, tmpTer:null,
+           ruta:{}, umb:{dist:150,prec:30}, mk:new Map()};
+let mapa, capa, capaLinea, capaReal;
+
+/* ============================================================ utilidades */
+const $ = id => document.getElementById(id);
+const norm = s => String(s ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+const escH = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const escX = escH;
+function num(v){
+  if(v===null||v===undefined||v==="") return null;
+  if(typeof v==="number") return isFinite(v)?v:null;
+  let s=String(v).trim().replace("−","-").replace(/\s/g,"");
+  const dms=s.toUpperCase().match(/^(-?\d+)[°º](\d+)['’](\d+(?:[.,]\d+)?)?["”]?([NSEOW])?$/);
+  if(dms){let x=Math.abs(+dms[1])+(+dms[2])/60+(+(dms[3]||"0").replace(",","."))/3600;
+    if(dms[1].startsWith("-")||/[SWO]/.test(dms[4]||"")) x=-x; return x;}
+  if((s.match(/,/g)||[]).length===1 && !s.includes(".")) s=s.replace(",",".");
+  else if((s.match(/\./g)||[]).length>1 && s.includes(",")) s=s.replace(/\./g,"").replace(",",".");
+  const n=Number(s); return isFinite(n)&&s!==""?n:null;
+}
+function coordComb(v){
+  if(v==null||v==="") return [null,null];
+  const s=String(v).replace("−","-");
+  let p=s.trim().split(/\s*[;|/]\s*|\s{2,}/);
+  if(p.length===2) return [num(p[0]),num(p[1])];
+  const m=s.match(/-?\d+(?:[.,]\d+)?/g)||[];
+  if(m.length===2) return [num(m[0]),num(m[1])];
+  if(m.length>=4 && s.includes(",") && !/\d,\d+\s*,/.test(s)) return [num(m[0]),num(m[1])];
+  return m.length>=2?[num(m[0]),num(m[1])]:[null,null];
+}
+function dist(a,b){const R=6371.0088,r=Math.PI/180;const dl=(b[0]-a[0])*r,dn=(b[1]-a[1])*r;
+  const h=Math.sin(dl/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+const enChile=(la,lo)=>la>=-56.5&&la<=-17&&lo>=-76.5&&lo<=-66;
+function cercana(la,lo){let best=null,d=1e9;for(const [c,v] of Object.entries(COMUNAS_RM)){const x=dist([la,lo],v);if(x<d){d=x;best=c;}}return [best,d];}
+function enRM(la,lo){if(!(la>=BBOX_RM.s&&la<=BBOX_RM.n&&lo>=BBOX_RM.o&&lo<=BBOX_RM.e))return false;const [c,d]=cercana(la,lo);return d<=(COMUNAS_RM[c][3]||15);}
+function lev(a,b){const m=a.length,n=b.length;if(Math.abs(m-n)>2)return 9;const d=Array.from({length:m+1},(_,i)=>[i]);
+  for(let j=1;j<=n;j++)d[0][j]=j;for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[m][n];}
+function comunaOficial(t){const n=norm(t);if(!n)return null;
+  for(const c of Object.keys(COMUNAS_RM)) if(norm(c)===n) return c;
+  if(ALIAS[n]) return ALIAS[n];
+  let best=null,bd=9;for(const c of Object.keys(COMUNAS_RM)){const d=lev(norm(c),n);if(d<bd){bd=d;best=c;}}
+  return bd<=(n.length>6?2:1)?best:null;}
+function descargar(nombre,contenido,tipo){const b=contenido instanceof Blob?contenido:new Blob([contenido],{type:tipo});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=nombre;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);}
+const fmt = n => n.toLocaleString("es-CL");
+function color(est){if(!est)return "#2B5F8A";if(S.colores[est])return S.colores[est];
+  const k=String(est).toUpperCase();if(COLOR_EST[k])return COLOR_EST[k];
+  const usados=Object.keys(S.colores).length;S.colores[est]=PALETA[usados%PALETA.length];return S.colores[est];}
+
+/* ============================================================ tema */
+function aplicarTema(t){document.documentElement.dataset.theme=t;$("btnTema").textContent=t==="dark"?"☀️":"🌙";}
+try{const t=localStorage.getItem("geoRM_tema");if(t)aplicarTema(t);}catch(e){}
+$("btnTema").onclick=()=>{const t=document.documentElement.dataset.theme==="dark"?"light":"dark";aplicarTema(t);try{localStorage.setItem("geoRM_tema",t);}catch(e){}};
+
+/* ============================================================ mapa */
+function initMapa(){
+  mapa=L.map("mapa",{preferCanvas:true}).setView([-33.45,-70.66],10);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(mapa);
+}
+initMapa();
+
+/* ============================================================ carga */
+const zona=$("zona");
+$("btnElegir").onclick=()=>$("archivo").click();
+$("archivo").onchange=e=>{if(e.target.files[0])leerArchivo(e.target.files[0]);};
+["dragenter","dragover"].forEach(t=>zona.addEventListener(t,e=>{e.preventDefault();zona.classList.add("sobre");}));
+["dragleave","drop"].forEach(t=>zona.addEventListener(t,e=>{e.preventDefault();zona.classList.remove("sobre");}));
+zona.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)leerArchivo(f);});
+
+function leerArchivo(f){
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const data=new Uint8Array(ev.target.result);
+      S.wb=XLSX.read(data,{type:"array",cellDates:true,codepage:65001});
+      S.nombre=f.name.replace(/\.[^.]+$/,"");
+      prepararHojas();
+    }catch(err){alert("No se pudo leer el archivo: "+err.message);}
+  };
+  r.readAsArrayBuffer(f);
+}
+function prepararHojas(){
+  const sel=$("selHoja");sel.innerHTML="";S.wb.SheetNames.forEach(n=>sel.add(new Option(n,n)));
+  sel.disabled=S.wb.SheetNames.length<2;sel.onchange=()=>cargarHoja(sel.value);
+  $("hdrArchivo").textContent=S.nombre;
+  // un Excel de dashboard exportado por la app abre directo en su hoja DATOS
+  const ini=S.wb.SheetNames.includes("DATOS")&&S.wb.SheetNames.includes("DASHBOARD")?"DATOS":S.wb.SheetNames[0];
+  sel.value=ini;cargarHoja(ini);
+}
+function cargarHoja(nombre){
+  S.hoja=nombre;
+  const m=XLSX.utils.sheet_to_json(S.wb.Sheets[nombre],{header:1,defval:"",raw:true});
+  // fila de encabezado: la primera con más celdas de texto en las 15 primeras
+  let hi=0,best=-1;for(let i=0;i<Math.min(15,m.length);i++){const c=m[i].filter(x=>typeof x==="string"&&x.trim()).length;if(c>best){best=c;hi=i;}}
+  const vistos={};S.headers=m[hi].map((h,i)=>{let t=String(h||`Columna ${i+1}`).trim();if(vistos[t]){vistos[t]++;t+=` (${vistos[t]})`;}else vistos[t]=1;return t;});
+  S.filas=m.slice(hi+1).filter(r=>r.some(x=>x!==""&&x!==null)).map((r,i)=>{const o={__fila:hi+2+i};S.headers.forEach((h,j)=>o[h]=r[j]instanceof Date?r[j].toLocaleDateString("es-CL"):r[j]);return o;});
+  $("infoArchivo").innerHTML=`Archivo: <b>${escH(S.nombre)}</b><br>Hoja: <b>${escH(nombre)}</b><br>Registros: <b>${fmt(S.filas.length)}</b> · Columnas: <b>${S.headers.length}</b>`;
+  cargarTerreno();cargarRuta();
+  detectar();
+  setTimeout(procesarColaDirecciones,1500);
+  marcar("p1");$("p2").open=true;
+}
+function detectar(){
+  const opts=["", ...S.headers];
+  const map={cLat:"lat",cLon:"lon",cCoord:"coord",cDir:"dir",cCom:"com",cEst:"est",cAlt:"alt"};
+  const usados=new Set();
+  for(const [id,k] of Object.entries(map)){
+    const sel=$(id);sel.innerHTML="";opts.forEach(h=>sel.add(new Option(h||"— ninguna —",h)));
+    const cand=S.headers.filter(h=>!esColTerreno(h));
+    let hit=cand.find(h=>SIN[k].includes(norm(h))&&!usados.has(h));
+    if(!hit) hit=cand.find(h=>SIN[k].some(s=>s.length>=4&&norm(h).startsWith(s))&&!usados.has(h)&&!/pago/.test(norm(h)));
+    if(hit){sel.value=hit;usados.add(hit);}
+  }
+  if($("cLat").value&&$("cLon").value) $("cCoord").value="";
+  const nom=S.headers.find(h=>/poste|^ot$|ordendetrabajo|^id$|instalacion|cliente/.test(norm(h)));
+  if(!$("tplNombre").value) $("tplNombre").value=nom?`{${nom}}`+($("cCom").value?` - {${$("cCom").value}}`:""):"";
+  ["fCol","gAgrupar"].forEach(id=>{const s=$(id);s.innerHTML="";s.add(new Option(id==="gAgrupar"?"Sin agrupar":"— elegir —",""));
+    if(id==="gAgrupar"){s.add(new Option("Comuna RM","__comuna"));s.add(new Option("Fuente de coordenada","__fuente"));}
+    S.headers.forEach(h=>s.add(new Option(h,h)));});
+  $("gAgrupar").add(new Option("Avance de inspección","__insp"),1);
+  if($("cEst").value) $("gAgrupar").value=$("cEst").value;
+  {const sel=$("cSec"),cand=S.headers.filter(h=>!esColTerreno(h));sel.innerHTML="";sel.add(new Option("— orden de filas del Excel —",""));
+   cand.forEach(h=>sel.add(new Option(h,h)));
+   const hit=cand.find(h=>SIN_SEC.includes(norm(h)))||cand.find(h=>/^(secuencia|correlativo)/.test(norm(h)));if(hit)sel.value=hit;}
+  $("btnProcesar").disabled=false;
+  procesar();
+}
+$("btnProcesar").onclick=procesar;
+["cLat","cLon","cCoord","cDir","cCom","cEst","cAlt"].forEach(id=>$(id).addEventListener("change",procesar));
+$("tplNombre").addEventListener("input",()=>{S.recs.forEach(r=>r.nombre=nombreDe(r));render();});
+
+/* ============================================================ proceso */
+function cfgActual(){return {lat:$("cLat").value,lon:$("cLon").value,coord:$("cCoord").value,dir:$("cDir").value,com:$("cCom").value,
+  est:$("cEst").value,alt:$("cAlt").value,sec:$("cSec").value,nombre:$("tplNombre").value,agrupar:$("gAgrupar").value,linea:$("chkLinea").checked,colores:S.colores};}
+function nombreDe(r){const tpl=$("tplNombre").value.trim();
+  if(!tpl) return `Fila ${r.fila.__fila}`;
+  return tpl.replace(/\{([^}]+)\}/g,(m,k)=>{const n=norm(k);
+    if(n==="comunarm")return r.comuna||"";if(n==="fuente")return r.fuente;
+    const h=S.headers.find(x=>norm(x)===n);return h?String(r.fila[h]??""):"";}).replace(/^[\s\-]+|[\s\-]+$/g,"")||`Fila ${r.fila.__fila}`;}
+function procesar(){
+  if(!S.filas.length) return;
+  const c=cfgActual();S.cfg=c;
+  const cache=leerCache();
+  S.recs=S.filas.map(f=>{
+    const r={fila:f,lat:null,lon:null,alt:c.alt?num(f[c.alt]):null,fuente:"",nivel:"ok",obs:[],inv:null,cands:null,
+             dir:c.dir?String(f[c.dir]||"").trim():"",comTxt:c.com?String(f[c.com]||"").trim():"",estado:c.est?String(f[c.est]||"").trim().toUpperCase()||"SIN ESTADO":""};
+    let la=null,lo=null;
+    if(c.coord&&!(c.lat&&c.lon)) [la,lo]=coordComb(f[c.coord]);
+    else if(c.lat&&c.lon){la=num(f[c.lat]);lo=num(f[c.lon]);
+      if((f[c.lat]!==""&&la===null)||(f[c.lon]!==""&&lo===null)) r.obs.push("Coordenada con texto no numérico");}
+    if(la!==null&&lo!==null){
+      if(Math.abs(la)>90||Math.abs(lo)>180){r.nivel="err";r.fuente="ERROR";r.obs.push("Coordenadas fuera de rango (¿UTM? use el script de la skill con --huso 19)");}
+      else if(enChile(lo,la)&&!enChile(la,lo)){r.nivel="err";r.fuente="ERROR";r.inv=[lo,la];r.obs.push("⚠ Posible inversión de latitud/longitud");}
+      else if(la>0&&enChile(-la,-Math.abs(lo))){r.nivel="err";r.fuente="ERROR";r.inv=[-la,-Math.abs(lo)];r.obs.push("⚠ Posible signo negativo faltante");}
+      else {r.lat=la;r.lon=lo;r.fuente="EXCEL";}
+    } else {
+      const key=norm([r.dir,comunaOficial(r.comTxt)||r.comTxt].join(","));
+      if(r.dir&&cache[key]){aplicarGeo(r,cache[key]);}
+      else {r.fuente="NO DISPONIBLE";r.nivel="err";r.obs.push(r.dir?"Sin coordenadas: dirección geocodificable":"Coordenada no disponible (sin dirección)");}
+    }
+    validarUbic(r);
+    return r;
+  });
+  duplicados();
+  S.recs.forEach(r=>r.nombre=nombreDe(r));
+  llenarFiltros();
+  marcar("p2");
+  $("btnGeo").disabled=!S.recs.some(r=>r.dir&&r.lat===null&&!r.inv);
+  $("btnInvertir").disabled=!S.recs.some(r=>r.inv);
+  $("btnCfgGuardar").disabled=false;
+  const pendGeo=S.recs.filter(r=>r.dir&&r.lat===null&&!r.inv).length,nInv=S.recs.filter(r=>r.inv).length;
+  $("infoGeo").textContent=pendGeo||nInv?`${pendGeo} filas con dirección y sin coordenadas · ${nInv} con posible inversión de latitud/longitud.`:
+    "Todas las filas con dirección ya tienen coordenadas.";
+  if(pendGeo||nInv)$("p3").open=true;else marcar("p3");
+  render(true);
+}
+function validarUbic(r){
+  const of=comunaOficial(r.comTxt);
+  if(r.lat!==null){
+    if(!enChile(r.lat,r.lon)){r.nivel="err";r.obs.push("Fuera de Chile");}
+    else if(!enRM(r.lat,r.lon)){if(r.nivel==="ok")r.nivel="warn";r.obs.push("Fuera de la Región Metropolitana");}
+  }
+  if(of){r.comuna=of;r.comunaEst=false;
+    if(r.lat!==null&&enRM(r.lat,r.lon)){const [cc,d]=cercana(r.lat,r.lon);const [ca,da]=[of,dist([r.lat,r.lon],COMUNAS_RM[of])];
+      if(cc!==of&&da>(COMUNAS_RM[of][3]||15)){if(r.nivel==="ok")r.nivel="warn";r.obs.push(`Punto lejos de ${of} (más cerca de ${cc})`);}}}
+  else if(r.lat!==null&&enRM(r.lat,r.lon)){r.comuna=cercana(r.lat,r.lon)[0];r.comunaEst=true;
+    if(r.comTxt)r.obs.push(`Comuna «${r.comTxt}» no reconocida en la RM`);}
+  else {r.comuna=r.comTxt||"";r.comunaEst=false;}
+  r.provincia=COMUNAS_RM[r.comuna]?COMUNAS_RM[r.comuna][2]:"";
+}
+function duplicados(){const v={};S.recs.forEach(r=>{if(r.lat===null)return;const k=r.lat.toFixed(5)+","+r.lon.toFixed(5);
+  if(v[k]){if(r.nivel==="ok")r.nivel="warn";r.obs.push(`Mismo punto que fila ${v[k]}`);}else v[k]=r.fila.__fila;});}
+
+/* ============================================================ geocodificación */
+function leerCache(){try{return JSON.parse(localStorage.getItem("geoRM_cache")||"{}");}catch(e){return {};}}
+function guardarCache(c){try{localStorage.setItem("geoRM_cache",JSON.stringify(c));}catch(e){}}
+function aplicarGeo(r,g){
+  r.obs=r.obs.filter(o=>!/geocodific|Dirección no encontrada|no disponible/i.test(o));
+  if(!g||!g.res||!g.res.length){r.fuente="NO ENCONTRADA";r.nivel="err";r.lat=r.lon=null;r.obs.push("✕ Dirección no encontrada");return;}
+  const sel=g.res[g.elegido||0];
+  r.lat=+sel.lat;r.lon=+sel.lon;r.fuente="GEOCODIFICADA";r.geoTxt=sel.display_name;
+  const exacto=["house","building","residential","apartments","commercial","yes"].includes(sel.type)||(sel.address&&sel.address.house_number);
+  if(g.res.length>1&&g.elegido===undefined){r.nivel="warn";r.cands=g.res;r.obs.push("⚠ Varias coincidencias: elija la correcta");}
+  else if(!exacto){r.nivel="warn";r.obs.push("⚠ Resultado aproximado");}
+  else {r.nivel="ok";r.obs.push("✓ Dirección encontrada");}
+}
+$("btnGeo").onclick=async()=>{
+  if(!navigator.onLine){toast("Sin conexión: la búsqueda de direcciones necesita internet. Inténtalo al recuperar señal.",5000);return;}
+  const pend=S.recs.filter(r=>r.dir&&r.lat===null&&!r.inv&&r.fuente!=="NO ENCONTRADA");
+  if(!pend.length){$("geoEstado").textContent="No hay direcciones pendientes.";return;}
+  S.geoParar=false;$("btnGeoStop").hidden=false;$("btnGeo").disabled=true;$("prog").style.display="block";
+  const cache=leerCache();let hechas=0,fallo=0;
+  for(const r of pend){
+    if(S.geoParar)break;
+    const com=comunaOficial(r.comTxt)||r.comTxt;
+    const key=norm([r.dir,com].join(","));
+    let g=cache[key];
+    if(!g){
+      const q=[r.dir,com,"Santiago","Región Metropolitana","Chile"].filter(Boolean).join(", ");
+      const url="https://nominatim.openstreetmap.org/search?"+new URLSearchParams({q,format:"jsonv2",limit:"3",countrycodes:"cl",
+        viewbox:"-71.75,-32.90,-69.75,-34.30",bounded:"1",addressdetails:"1","accept-language":"es"});
+      try{const resp=await fetch(url,{headers:{"Accept":"application/json"}});
+        if(!resp.ok)throw new Error(resp.status);
+        g={res:await resp.json()};cache[key]=g;guardarCache(cache);
+      }catch(e){fallo++;r.fuente="ERROR";r.nivel="err";r.obs=r.obs.filter(o=>!/geocodificable/.test(o));r.obs.push("Error de geocodificación: servicio no disponible");
+        if(fallo>=3){$("geoEstado").textContent="El servicio de geocodificación no responde. Revisa tu conexión e inténtalo más tarde.";break;}
+        await new Promise(s=>setTimeout(s,1100));continue;}
+      await new Promise(s=>setTimeout(s,1100)); // máx. 1 consulta por segundo (política Nominatim)
+    }
+    aplicarGeo(r,g);r.obs=r.obs.filter(o=>!/geocodificable/.test(o));validarUbic(r);r.nombre=nombreDe(r);
+    hechas++;$("prog").firstElementChild.style.width=(hechas/pend.length*100)+"%";
+    $("geoEstado").textContent=`Geocodificadas ${hechas} de ${pend.length}…`;
+    if(hechas%10===0)render();
+  }
+  $("btnGeoStop").hidden=true;$("btnGeo").disabled=false;
+  const ok=pend.filter(r=>r.fuente==="GEOCODIFICADA").length;
+  $("geoEstado").textContent=`Listo: ${ok} ubicadas, ${pend.length-ok} sin resultado o pendientes.`;
+  marcar("p3");llenarFiltros();render(true);
+};
+$("btnGeoStop").onclick=()=>{S.geoParar=true;};
+function elegirCandidato(i,j){const r=S.recs[i];const cache=leerCache();
+  const key=norm([r.dir,comunaOficial(r.comTxt)||r.comTxt].join(","));
+  const g={res:r.cands,elegido:+j};cache[key]=g;guardarCache(cache);r.cands=null;
+  aplicarGeo(r,g);validarUbic(r);render(true);}
+function corregirInv(i){const r=S.recs[i];if(!r.inv)return;[r.lat,r.lon]=r.inv;r.inv=null;r.fuente="EXCEL";r.nivel="ok";
+  r.obs=r.obs.filter(o=>!/Posible/.test(o));r.obs.push("Corregida con autorización del usuario");validarUbic(r);}
+$("btnInvertir").onclick=()=>{const n=S.recs.filter(r=>r.inv).length;
+  if(!confirm(`Se corregirán ${n} registros con coordenadas invertidas o sin signo negativo. ¿Continuar?`))return;
+  S.recs.forEach((r,i)=>{if(r.inv)corregirInv(i);});$("btnInvertir").disabled=true;llenarFiltros();render(true);};
+function editarManual(i){const r=S.recs[i];
+  const t=prompt(`Coordenadas para «${r.nombre}» (latitud, longitud):`,r.lat!==null?`${r.lat}, ${r.lon}`:"-33.");
+  if(!t)return;const [la,lo]=coordComb(t);if(la===null||lo===null||Math.abs(la)>90||Math.abs(lo)>180){alert("Coordenadas no válidas.");return;}
+  r.lat=la;r.lon=lo;r.inv=null;r.cands=null;r.fuente="MANUAL";r.nivel="ok";r.obs=["Ingresada manualmente"];validarUbic(r);llenarFiltros();render(true);}
+
+/* ============================================================ filtros */
+function llenarSel(id,valores,etq){const s=$(id),prev=s.value;s.innerHTML="";s.add(new Option(etq,""));
+  [...valores].filter(v=>v!=="").sort((a,b)=>String(a).localeCompare(String(b),"es")).forEach(v=>s.add(new Option(v,v)));
+  if([...s.options].some(o=>o.value===prev))s.value=prev;}
+function llenarFiltros(){
+  llenarSel("fComuna",new Set(S.recs.map(r=>r.comuna||"Sin comuna")),"Todas");
+  llenarSel("fEstado",new Set(S.recs.map(r=>r.estado)),S.cfg.est?"Todos":"(sin columna de estado)");
+  llenarSel("fFuente",new Set(S.recs.map(r=>r.fuente)),"Todas");
+}
+["fComuna","fEstado","fFuente","fVal","fReal","fInsp","rColor","gAgrupar","chkLinea","soloErr","chkReal"].forEach(id=>$(id).addEventListener("change",()=>{render(true);
+  if(["fComuna","fEstado","fFuente","fVal","fReal","fInsp"].includes(id)&&S.recs.length)
+    toast(filtrosActivos()?`Filtro aplicado: ${fmt(S.filtrados.length)} de ${fmt(S.recs.length)} registros (${fmt(S.mk.size)} en el mapa).`:`Sin filtros: ${fmt(S.recs.length)} registros.`,3000);}));
+$("fCol").addEventListener("change",()=>{const h=$("fCol").value;$("fVal").disabled=!h;
+  if(h)llenarSel("fVal",new Set(S.recs.map(r=>String(r.fila[h]??""))),"Todos los valores");else $("fVal").innerHTML="";render(true);});
+$("buscar").addEventListener("input",()=>render(false));
+$("btnQuitarFiltros").onclick=()=>{["fComuna","fEstado","fFuente","fCol","fReal","fInsp"].forEach(id=>$(id).value="");$("fVal").innerHTML="";$("fVal").disabled=true;$("buscar").value="";$("soloErr").checked=false;render(true);};
+function pasaFiltros(r){
+  const fc=$("fComuna").value,fe=$("fEstado").value,ff=$("fFuente").value,col=$("fCol").value,fv=$("fVal").value;
+  if(fc&&(r.comuna||"Sin comuna")!==fc)return false;
+  if(fe&&r.estado!==fe)return false;
+  if(ff&&r.fuente!==ff)return false;
+  if(col&&fv&&String(r.fila[col]??"")!==fv)return false;
+  const fi=$("fInsp").value;if(fi&&r.insp!==fi)return false;
+  const fr=$("fReal").value;if(fr==="si"&&!conUbic(r))return false;if(fr==="no"&&conUbic(r))return false;if(fr==="obs"&&!obsTer(r))return false;
+  return true;
+}
+const filtrosActivos=()=>["fComuna","fEstado","fFuente","fReal","fInsp"].some(id=>$(id).value)||($("fCol").value&&$("fVal").value);
+
+/* ============================================================ render */
+function render(mover){
+  calcInsp();asegurarOrden();
+  const vis=S.recs.filter(pasaFiltros);S.filtrados=vis;
+  const conPunto=vis.filter(r=>puntoDe(r));
+  // cifras
+  $("kTotal").textContent=fmt(S.recs.length);
+  $("kGps").textContent=fmt(S.recs.filter(r=>r.lat!==null&&(r.fuente==="EXCEL"||r.fuente==="MANUAL")).length);
+  $("kGeo").textContent=fmt(S.recs.filter(r=>r.fuente==="GEOCODIFICADA").length);
+  $("kSin").textContent=fmt(S.recs.filter(r=>r.lat===null&&!r.inv).length);
+  $("kErr").textContent=fmt(S.recs.filter(r=>r.nivel!=="ok").length);
+  const nReal=S.recs.filter(conUbic).length,nObs=S.recs.filter(obsTer).length,nTer=S.recs.filter(r=>ter(r)).length;$("kReal").textContent=fmt(nReal);
+  $("infoTerreno").textContent=S.recs.length?`${fmt(nReal)} de ${fmt(S.recs.length)} registros con ubicación real y ${fmt(nObs)} con observación de terreno, guardados en este equipo.`:"Carga un archivo para registrar ubicaciones reales.";
+  ["btnXlsReal","btnRespaldo","btnXlsVBA"].forEach(id=>$(id).disabled=!S.recs.length);actualizarPend();$("btnXlsSoloReal").disabled=!nTer;
+  $("vacio").style.display=S.recs.length?"none":"grid";
+  // mapa
+  if(capa)mapa.removeLayer(capa);if(capaLinea){mapa.removeLayer(capaLinea);capaLinea=null;}
+  if(capaReal){mapa.removeLayer(capaReal);capaReal=null;}
+  capaReal=L.layerGroup().addTo(mapa);
+  capa=conPunto.length>300?L.markerClusterGroup({chunkedLoading:true,maxClusterRadius:45,disableClusteringAtZoom:16,iconCreateFunction:iconoGrupo}):L.layerGroup();
+  S.mk=new Map();const porInsp=$("rColor").value!=="estado";
+  conPunto.forEach(r=>{
+    const p=puntoDe(r),o=ordenDe(r),txt=o!=null?String(o):"·",w=Math.max(24,10+txt.length*7);
+    const ic=L.divIcon({className:"pinw",iconSize:[w,24],iconAnchor:[w/2,12],popupAnchor:[0,-12],
+      html:`<div class="pin${porInsp&&r.insp==="duda"?" duda":""}${p.real?" real":""}" style="background:${porInsp?INSP[r.insp].c:color(r.estado)};width:${w}px">${txt}</div>`});
+    const m=L.marker([p.lat,p.lon],{icon:ic,insp:porInsp?r.insp:"",title:`N° ${txt} · ${r.nombre} · ${txtInsp(r)}`,zIndexOffset:r.insp==="ok"?0:(r.insp==="duda"?800:400)});
+    m.bindPopup(()=>popupHtml(r),{maxWidth:320});capa.addLayer(m);S.mk.set(r,m);
+    // punto original atenuado y línea punteada hacia el punto real
+    if(p.real&&r.lat!==null&&r.nivel!=="err"&&dist([r.lat,r.lon],[p.lat,p.lon])>0.005){
+      L.circleMarker([r.lat,r.lon],{radius:4,weight:1,color:"#5B6B73",fillColor:"#fff",fillOpacity:.9}).bindTooltip("Coordenada original del documento").addTo(capaReal);
+      L.polyline([[r.lat,r.lon],[p.lat,p.lon]],{color:"#7A4FB5",weight:2,dashArray:"4 5"}).addTo(capaReal);
+    }
+  });
+  capa.addTo(mapa);
+  const enVista=new Set(conPunto),lin=rutaLista().filter(r=>enVista.has(r));
+  if($("chkLinea").checked&&lin.length>1)capaLinea=L.polyline(lin.map(r=>{const p=puntoDe(r);return [p.lat,p.lon];}),{color:"#2B5F8A",weight:3,opacity:.7,dashArray:"8 6"}).addTo(mapa);
+  if(mover&&conPunto.length){const b=L.latLngBounds(conPunto.map(r=>{const p=puntoDe(r);return [p.lat,p.lon];}));mapa.fitBounds(b.pad(0.08),{maxZoom:16,animate:false});}
+  leyenda(conPunto);tabla();errores();stats(vis);
+  const nExp=conPunto.length;
+  $("infoExport").textContent=S.recs.length?`${fmt(S.recs.filter(r=>puntoDe(r)).length)} puntos exportables en total · ${fmt(nExp)} con los filtros actuales.`:"Carga un archivo para habilitar la exportación.";
+  $("btnExpTodo").disabled=!S.recs.some(r=>puntoDe(r));
+  $("btnExpFiltro").disabled=!filtrosActivos()||!nExp;
+  $("btnErrCsv").disabled=!S.recs.some(r=>r.nivel!=="ok");
+  if(S.recs.length){marcar("p4");}
+  avance();
+}
+// grupos de puntos: fondo neutro (no se confunden con los estados) y borde según lo que contienen
+function iconoGrupo(g){const ms=g.getAllChildMarkers(),n=ms.length;
+  const k=ms.some(m=>m.options.insp==="duda")?"duda":ms.some(m=>m.options.insp==="pend")?"pend":ms.every(m=>m.options.insp==="ok")?"ok":"";
+  const w=n<100?34:n<1000?40:46;
+  return L.divIcon({className:"pinw",iconSize:[w,w],html:`<div class="clu" style="width:${w}px;height:${w}px;border-color:${k?INSP[k].c:"#fff"}" title="${n} puntos">${n}</div>`});}
+function popupHtml(r){
+  const p=puntoDe(r),t=ter(r),i=S.recs.indexOf(r);
+  const filas=[["Comuna",(r.comuna||"—")+(r.comunaEst?" (estimada)":"")]];
+  if(r.lat!==null)filas.push(["Coord. documento",`${r.lat.toFixed(6)}, ${r.lon.toFixed(6)}`]);
+  filas.push(["Fuente",r.fuente]);
+  if(t&&!conUbic(r)&&t.obs)filas.push(["Obs. terreno",t.obs]);
+  if(conUbic(r)){filas.push(["Ubicación real",t.dir||"(solo coordenadas)"]);if(t.lat!=null)filas.push(["Coord. real",`${t.lat.toFixed(6)}, ${t.lon.toFixed(6)}`]);
+    const d=difReal(r);if(d!=="")filas.push(["Diferencia",`${fmt(d)} m`]);if(t.obs)filas.push(["Obs. terreno",t.obs]);if(t.fecha)filas.push(["Registrada",t.fecha]);}
+  if(r.estado)filas.push(["Estado",r.estado]);
+  S.headers.forEach(h=>{const v=r.fila[h];if(v!==""&&v!==null&&![S.cfg.lat,S.cfg.lon,S.cfg.coord].includes(h))filas.push([h,v]);});
+  if(r.obs.length)filas.push(["Observación",r.obs.join(" · ")]);
+  const gm=`https://www.google.com/maps/search/?api=1&query=${p.lat.toFixed(6)},${p.lon.toFixed(6)}`;
+  const o=ordenDe(r),acc=[];
+  if(!realizado(r))acc.push(`<button class="btn" onclick="marcarRealizado(${i},true)">✔ Marcar realizado</button>`);
+  else if(t&&t.insp&&!conUbic(r))acc.push(`<button class="btn" onclick="marcarRealizado(${i},false)">↩ Volver a pendiente</button>`);
+  acc.push(r.insp==="duda"?`<button class="btn" onclick="validarDuda(${i})">✔ Validar duda</button>`:`<button class="btn" onclick="abrirDuda(${i})">⚠ Marcar con duda</button>`);
+  const cab=`<div class="pop-est"><span class="chip i-${r.insp}">${escH(txtInsp(r))}</span>
+      <span>N° <input class="ord" type="number" min="1" value="${o??""}" aria-label="N° de ruta" onchange="cambiarOrden(${i},this.value)"></span></div>
+    ${r.motivos.length?`<ul class="motivos">${r.motivos.map(x=>`<li>${escH(x)}</li>`).join("")}</ul>`:""}${r.validado?`<p class="nota" style="margin:0 0 6px">Duda validada el ${escH(r.validado)}</p>`:""}
+    <div class="fila" style="margin:0 0 8px">${acc.join("")}</div>`;
+  return `<div class="popup"><h4>${escH(r.nombre)}</h4>${cab}<table>${filas.map(([k,v])=>`<tr><td><b>${escH(k)}</b></td><td>${escH(v)}</td></tr>`).join("")}</table>
+    <p><a href="${gm}" target="_blank" rel="noopener">Abrir en Google Maps</a></p>
+    <div class="fila"><button class="btn terreno" onclick="abrirTerreno(${i})">📍 ${conUbic(r)?"Editar":"Agregar"} ubicación real</button>
+    <button class="btn terreno" onclick="abrirTerreno(${i});setTimeout(()=>document.getElementById('tObs').focus(),50)">📝 Observación</button></div></div>`;
+}
+function leyenda(pts){
+  const el=$("leyenda");if(!pts.length){el.hidden=true;return;}
+  if($("rColor").value!=="estado"){const c={pend:0,ok:0,duda:0};pts.forEach(r=>c[r.insp]++);el.hidden=false;
+    el.innerHTML=`<h4>Avance</h4>`+Object.keys(INSP).map(k=>`<div class="it"><i class="punto" style="background:${INSP[k].c}"></i><span>${INSP[k].t}</span><span class="c">${fmt(c[k])}</span></div>`).join("")+
+      `<div class="it nota" style="margin-top:4px"><span class="punto" style="background:#fff;border-color:#7A4FB5;box-shadow:none"></span>Borde morado: ubicación real</div>`;return;}
+  const cnt={};pts.forEach(r=>{const k=r.estado||"Puntos";cnt[k]=(cnt[k]||0)+1;});
+  el.hidden=false;el.innerHTML=`<h4>Leyenda</h4>`+Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(([k,v])=>
+    `<div class="it"><input type="color" value="${color(k==="Puntos"?"":k)}" data-est="${escH(k)}" aria-label="Color de ${escH(k)}"><span>${escH(k)}</span><span class="c">${fmt(v)}</span></div>`).join("");
+  el.querySelectorAll("input[type=color]").forEach(i=>i.onchange=()=>{S.colores[i.dataset.est==="Puntos"?"":i.dataset.est]=i.value;render(false);});
+}
+function tabla(){
+  const q=norm($("buscar").value),solo=$("soloErr").checked;
+  const idx=new Map(S.recs.map((r,i)=>[r,i]));
+  let filas=S.filtrados.map(r=>({r,i:idx.get(r)}));
+  if(q)filas=filas.filter(({r})=>norm(Object.values(r.fila).join(" ")+r.comuna+r.fuente+r.obs.join(" ")).includes(q));
+  if(solo)filas=filas.filter(({r})=>r.nivel!=="ok");
+  const rankI={pend:0,duda:1,ok:2};
+  filas.forEach(({r})=>{const o=ordenDe(r);r.ordenRuta=o==null?1e9:o;r.inspOrd=rankI[r.insp];});
+  filas.forEach(({r})=>{const t=ter(r);r.realTxt=conUbic(r)?(t.dir||`${t.lat.toFixed(6)}, ${t.lon.toFixed(6)}`):"";r.obsTxt=[obsTer(r)?"📝 "+obsTer(r):"",...r.obs].filter(Boolean).join(" · ");});
+  const cols0=[["N°","ordenRuta"],["Inspección","inspOrd"]];
+  const cols=[["ID","nombre"],["Dirección","dir"],["Ubicación real","realTxt"],["Comuna","comuna"],["Latitud","lat"],["Longitud","lon"],["Fuente","fuente"],["Estado","estado"],["Observaciones","obsTxt"]];
+  if(S.orden.col){const k=S.orden.col;filas.sort((a,b)=>{const x=a.r[k]??"",y=b.r[k]??"";return (typeof x==="number"&&typeof y==="number"?x-y:String(x).localeCompare(String(y),"es",{numeric:true}))*(S.orden.asc?1:-1);});}
+  const th=([t,k])=>`<th data-k="${k}">${t}${S.orden.col===k?(S.orden.asc?" ▲":" ▼"):""}</th>`;
+  $("tabla").tHead.innerHTML="<tr>"+cols0.map(th).join("")+"<th>Fila</th>"+cols.map(([t,k])=>`<th data-k="${k}">${t}${S.orden.col===k?(S.orden.asc?" ▲":" ▼"):""}</th>`).join("")+"<th></th></tr>";
+  $("tabla").tHead.querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>{const k=th.dataset.k;S.orden.asc=S.orden.col===k?!S.orden.asc:true;S.orden.col=k;tabla();});
+  const vis=filas.slice(0,S.pagina);
+  $("tabla").tBodies[0].innerHTML=vis.map(({r,i})=>{
+    let acc="";
+    if(r.cands)acc=`<select class="cand" data-i="${i}"><option value="">Elegir ubicación…</option>${r.cands.map((c,j)=>`<option value="${j}">${escH(c.display_name)}</option>`).join("")}</select>`;
+    else if(r.inv)acc=`<button class="btn" data-inv="${i}">Corregir</button>`;
+    acc+=` <button class="btn" data-man="${i}" title="Corregir coordenadas del documento">✎</button>`;
+    const t=ter(r);
+    const real=conUbic(r)?`${escH(r.realTxt)}<br><a href="${escH(linkReal(r))}" target="_blank" rel="noopener">Abrir link</a>${difReal(r)!==""?` <span class="nota">· ${fmt(difReal(r))} m</span>`:""}`:"<span class='nota'>Sin registrar</span>";
+    const o=ordenDe(r);
+    return `<tr><td><input class="ord" type="number" min="1" value="${o??""}" data-ord="${i}" aria-label="N° de ruta"${o==null?" disabled title='Sin ubicación en el mapa'":""}></td>
+      <td><span class="chip i-${r.insp}" title="${escH(r.motivos.join(" · "))}">${escH(txtInsp(r))}</span></td><td>${r.fila.__fila}</td><td>${escH(r.nombre)}</td><td>${escH(r.dir)}</td>
+      <td class="real">${real} <button class="btn terreno" data-ter="${i}" title="${conUbic(r)?"Editar":"Agregar"} ubicación real">📍</button></td><td>${escH(r.comuna||"")}${r.comunaEst?" <span class='nota'>(est.)</span>":""}</td>
+      <td>${r.lat!==null?r.lat.toFixed(6):"—"}</td><td>${r.lon!==null?r.lon.toFixed(6):"—"}</td><td><span class="chip ${r.fuente}">${r.fuente}</span></td>
+      <td>${escH(r.estado)}</td><td class="est ${r.nivel}">${obsTer(r)?`<b class="obs-ter">📝 ${escH(obsTer(r))}</b>${r.obs.length?"<br>":""}`:""}${escH(r.obs.join(" · ")||(obsTer(r)?"":"OK"))}
+        <button class="btn terreno" data-obs="${i}" title="${obsTer(r)?"Editar":"Agregar"} observación">📝</button></td><td>${acc}</td></tr>`;}).join("");
+  $("tabla").querySelectorAll("select.cand").forEach(s=>s.onchange=()=>{if(s.value!=="")elegirCandidato(+s.dataset.i,s.value);});
+  $("tabla").querySelectorAll("[data-inv]").forEach(b=>b.onclick=()=>{corregirInv(+b.dataset.inv);llenarFiltros();render(true);});
+  $("tabla").querySelectorAll("[data-ord]").forEach(n=>n.onchange=()=>cambiarOrden(+n.dataset.ord,n.value));
+  $("tabla").querySelectorAll("[data-man]").forEach(b=>b.onclick=()=>editarManual(+b.dataset.man));
+  $("tabla").querySelectorAll("[data-ter]").forEach(b=>b.onclick=()=>abrirTerreno(+b.dataset.ter));
+  $("tabla").querySelectorAll("[data-obs]").forEach(b=>b.onclick=()=>{abrirTerreno(+b.dataset.obs);setTimeout(()=>$("tObs").focus(),50);});
+  $("infoTabla").textContent=`${fmt(filas.length)} registros${filas.length>S.pagina?` · mostrando ${fmt(S.pagina)}`:""}`;
+  $("btnMas").hidden=filas.length<=S.pagina;
+}
+$("btnMas").onclick=()=>{S.pagina+=300;tabla();};
+function errores(){
+  const e=S.recs.filter(r=>r.nivel!=="ok");
+  $("listaErr").innerHTML=e.length?e.slice(0,200).map(r=>`<li><b>Fila ${r.fila.__fila}</b> (${escH(r.nombre)}): ${escH(r.obs.join(" · "))}</li>`).join("")+(e.length>200?`<li class="nota">… y ${e.length-200} más en el CSV de errores.</li>`:""):`<li class="ok">Sin registros con problemas.</li>`;
+}
+function stats(vis){
+  const grupo=(f)=>{const c={};vis.forEach(r=>{const k=f(r)||"—";c[k]=(c[k]||0)+1;});return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,12);};
+  const bloque=(t,d)=>{const max=Math.max(1,...d.map(x=>x[1]));return `<div class="stat"><h3>${t}</h3>${d.map(([k,v])=>`<div class="bar"><span title="${escH(k)}">${escH(k)}</span><i style="width:${v/max*100}%"></i><b>${fmt(v)}</b></div>`).join("")||"<p class='nota'>Sin datos</p>"}</div>`;};
+  const crit=S.headers.find(h=>/criticidad|riesgo/.test(norm(h)));
+  const tipo=S.headers.find(h=>/^tipo/.test(norm(h)));
+  $("stats").innerHTML=bloque("Por comuna",grupo(r=>r.comuna))+(S.cfg.est?bloque("Por estado",grupo(r=>r.estado)):"")+
+    bloque("Por fuente de coordenada",grupo(r=>r.fuente))+(crit?bloque(`Por ${crit}`,grupo(r=>String(r.fila[crit]||""))):"")+(tipo?bloque(`Por ${tipo}`,grupo(r=>String(r.fila[tipo]||""))):"");
+}
+function marcar(id){$(id).dataset.listo="1";}
+
+/* ============================================================ KML/KMZ */
+function kmlColor(hex){const h=hex.replace("#","");return "ff"+h.slice(4,6)+h.slice(2,4)+h.slice(0,2);}
+function generarKML(lista){
+  const doc=S.nombre||"GEO_Inspecciones_RM",agr=$("gAgrupar").value,porInsp=$("rColor").value!=="estado";
+  const estilos={},carpetas={};calcInsp();
+  lista=[...lista].sort((a,b)=>(ordenDe(a)??1e9)-(ordenDe(b)??1e9));
+  lista.forEach(r=>{
+    const sid=porInsp?"insp_"+r.insp:"est_"+(norm(r.estado)||"base");estilos[sid]=porInsp?INSP[r.insp].c:color(r.estado);
+    const o=ordenDe(r);
+    const datos=[["N° ruta",o??"—"],["Estado inspección",txtInsp(r)]];
+    if(r.motivos.length)datos.push(["Motivo duda",r.motivos.join(" · ")]);
+    if(r.validado)datos.push(["Duda validada",r.validado]);
+    datos.push(["Comuna RM",(r.comuna||"—")+(r.comunaEst?" (estimada)":"")+(r.provincia?` – Prov. ${r.provincia}`:"")],["Fuente coordenada",r.fuente]);
+    S.headers.forEach(h=>{const v=r.fila[h];if(v!==""&&v!==null&&![S.cfg.lat,S.cfg.lon,S.cfg.coord].includes(h))datos.push([h,v]);});
+    const p=puntoDe(r),t=ter(r);
+    if(r.lat!==null)datos.push(["Latitud documento",r.lat.toFixed(6)],["Longitud documento",r.lon.toFixed(6)]);
+    if(t&&!conUbic(r)&&t.obs)datos.push(["Obs. terreno",t.obs]);
+    if(conUbic(r)){datos.push(["Ubicación real",t.dir||"(solo coordenadas)"]);if(t.lat!=null)datos.push(["Latitud real",t.lat.toFixed(6)],["Longitud real",t.lon.toFixed(6)]);
+      const d=difReal(r);if(d!=="")datos.push(["Diferencia con documento (m)",d]);if(t.obs)datos.push(["Obs. terreno",t.obs]);if(t.fecha)datos.push(["Fecha registro",t.fecha]);
+      datos.push(["Link ubicación real",linkReal(r)]);}
+    datos.push(["Punto usado en el mapa",p.real?"Ubicación real de terreno":"Coordenada del documento"]);
+    if(r.geoTxt)datos.push(["Dirección geocodificada",r.geoTxt]);
+    if(r.obs.length)datos.push(["Observación",r.obs.join(" · ")]);
+    const gm=`https://www.google.com/maps/search/?api=1&query=${p.lat.toFixed(6)},${p.lon.toFixed(6)}`;
+    const desc=`<table>${datos.map(([k,v])=>`<tr><td><b>${escH(k)}</b></td><td>${escH(v)}</td></tr>`).join("")}</table><p><a href="${escH(gm)}">Abrir en Google Maps</a></p>`;
+    const ext=datos.map(([k,v])=>`<Data name="${escX(String(k).replace(/[^A-Za-z0-9_]/g,"_"))}"><value>${escX(v)}</value></Data>`).join("");
+    const pm=`
+      <Placemark>
+        <name>${escX((o!=null?o+". ":"")+r.nombre)}</name>
+        <description><![CDATA[${desc.replace(/]]>/g,"]] >")}]]></description>
+        <styleUrl>#${sid}</styleUrl>
+        <ExtendedData>${ext}</ExtendedData>
+        <Point><coordinates>${p.lon.toFixed(6)},${p.lat.toFixed(6)},${r.alt??0}</coordinates></Point>
+      </Placemark>`;
+    let g="Puntos";
+    if(agr==="__comuna")g=r.comuna||"Sin comuna";else if(agr==="__insp")g=txtInsp(r);else if(agr==="__fuente")g=r.fuente;else if(agr)g=String(r.fila[agr]??"").trim()||"Sin dato";
+    (carpetas[g]=carpetas[g]||[]).push(pm);
+  });
+  const est=Object.entries(estilos).map(([id,hex])=>`
+  <Style id="${id}"><IconStyle><color>${kmlColor(hex)}</color><scale>1.1</scale>
+    <Icon><href>http://maps.google.com/mapfiles/kml/paddle/wht-circle.png</href></Icon></IconStyle>
+    <LabelStyle><scale>0.85</scale></LabelStyle></Style>`).join("");
+  const car=Object.entries(carpetas).sort((a,b)=>a[0].localeCompare(b[0],"es")).map(([g,v])=>`
+    <Folder><name>${escX(g)} (${v.length})</name>${v.join("")}
+    </Folder>`).join("");
+  let linea="";
+  if($("chkLinea").checked&&lista.length>1)linea=`
+  <Folder><name>Ruta (orden de visita)</name><Placemark><name>Ruta</name><Style><LineStyle><color>ff8a5f2b</color><width>4</width></LineStyle></Style>
+    <LineString><tessellate>1</tessellate><coordinates>${lista.map(r=>{const p=puntoDe(r);return `${p.lon.toFixed(6)},${p.lat.toFixed(6)},0`;}).join(" ")}</coordinates></LineString></Placemark></Folder>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>${escX(doc)}</name>${est}
+  <Folder><name>${escX(doc)}</name>${car}
+  </Folder>${linea}
+</Document>
+</kml>`;
+}
+function abrirRevision(filtrado){
+  const base=filtrado?S.filtrados:S.recs;const lista=base.filter(r=>puntoDe(r));
+  S.ultimaExport=lista;
+  const agr=$("gAgrupar");
+  $("dlRevision").innerHTML=[["Archivo",S.nombre],["Registros",fmt(S.recs.length)],["Coordenadas del Excel",fmt(S.recs.filter(r=>r.fuente==="EXCEL"&&r.lat!==null).length)],
+    ["Geocodificados",fmt(S.recs.filter(r=>r.fuente==="GEOCODIFICADA").length)],["Manuales",fmt(S.recs.filter(r=>r.fuente==="MANUAL").length)],
+    ["Sin ubicación",fmt(S.recs.filter(r=>r.lat===null&&!ter(r)).length)],["Con ubicación real",fmt(lista.filter(r=>puntoDe(r).real).length)+" en el mapa"],["Con advertencias",fmt(S.recs.filter(r=>r.nivel==="warn").length)],
+    ["Agrupación",agr.options[agr.selectedIndex]?.text||"Sin agrupar"],["Nombre",$("tplNombre").value||"Fila"]]
+    .map(([k,v])=>`<dt>${escH(k)}</dt><dd>${escH(v)}</dd>`).join("");
+  const warn=lista.filter(r=>r.nivel==="warn").length;
+  $("txtRevision").innerHTML=`<b>${fmt(lista.length)} puntos serán exportados${filtrado?" (filtrados)":""}.</b>`+(warn?` Incluye ${warn} con advertencias (resultado aproximado, fuera de RM o duplicados).`:"");
+  $("dlgRevision").showModal();
+}
+$("btnExpTodo").onclick=()=>abrirRevision(false);
+$("btnExpFiltro").onclick=()=>abrirRevision(true);
+$("btnCancelarExp").onclick=()=>$("dlgRevision").close();
+$("btnGenerar").onclick=async()=>{
+  const lista=S.ultimaExport||[];if(!lista.length)return;
+  const kml=generarKML(lista),nom=(S.nombre||"GEO_Inspecciones_RM").replace(/[\\/:*?"<>|]/g,"_");
+  descargar(nom+".kml",kml,"application/vnd.google-earth.kml+xml");
+  const zip=new JSZip();zip.file("doc.kml",kml);
+  const blob=await zip.generateAsync({type:"blob",compression:"DEFLATE",mimeType:"application/vnd.google-earth.kmz"});
+  setTimeout(()=>descargar(nom+".kmz",blob),400);
+  $("dlgRevision").close();
+  const r=$("resultado");r.style.display="block";
+  r.innerHTML=`✓ Proceso completado<br>${fmt(lista.length)} puntos generados.<br>📍 ${escH(nom)}.kml<br>📦 ${escH(nom)}.kmz`;
+  marcar("p5");
+};
+$("btnErrCsv").onclick=()=>{
+  const e=S.recs.filter(r=>r.nivel!=="ok");
+  const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const csv=["Fila;ID;Dirección;Comuna;Latitud;Longitud;Fuente;Problema",...e.map(r=>[r.fila.__fila,r.nombre,r.dir,r.comuna,r.lat??"",r.lon??"",r.fuente,r.obs.join(" | ")].map(q).join(";"))].join("\r\n");
+  descargar((S.nombre||"registros")+"_errores.csv","\ufeff"+csv,"text/csv;charset=utf-8");
+};
+
+/* ============================================================ configuración */
+$("btnCfgGuardar").onclick=()=>{const c=cfgActual();c.filtros={comuna:$("fComuna").value,estado:$("fEstado").value,fuente:$("fFuente").value,col:$("fCol").value,val:$("fVal").value};
+  descargar((S.nombre||"config")+"_config_geo.json",JSON.stringify(c,null,2),"application/json");};
+$("btnCfgCargar").onclick=()=>$("cfgArchivo").click();
+$("cfgArchivo").onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const c=JSON.parse(t);
+  const set=(id,v)=>{if(v!==undefined&&[...$(id).options].some(o=>o.value===v))$(id).value=v;};
+  set("cLat",c.lat);set("cLon",c.lon);set("cCoord",c.coord);set("cDir",c.dir);set("cCom",c.com);set("cEst",c.est);set("cAlt",c.alt);set("cSec",c.sec);
+  if(c.nombre!==undefined)$("tplNombre").value=c.nombre;set("gAgrupar",c.agrupar);$("chkLinea").checked=!!c.linea;S.colores=c.colores||{};
+  procesar();if(c.filtros){set("fComuna",c.filtros.comuna);set("fEstado",c.filtros.estado);set("fFuente",c.filtros.fuente);
+    set("fCol",c.filtros.col);$("fCol").dispatchEvent(new Event("change"));set("fVal",c.filtros.val);render(true);}
+  }catch(err){alert("El archivo de configuración no es válido.");}});e.target.value="";};
+
+/* ============================================================ ubicación real de terreno */
+const COLS_TER=["N° RUTA","ESTADO INSPECCIÓN","Ubicación maps","COMUNA RM","UBICACIÓN REAL","LAT REAL","LON REAL","LINK UBICACIÓN REAL","PRECISIÓN GPS (m)","DIF. CON DOCUMENTO (m)","FECHA REGISTRO","OBS. TERRENO","OBS. VALIDACIÓN","REGISTRO SIN SEÑAL","ESTADO ENVÍO","MOTIVO DUDA","VALIDACIÓN DUDA"];
+function esColTerreno(h){const n=norm(h);return COLS_TER.some(c=>norm(c)===n);}
+const claveAlm=()=>"geoRM_terreno|"+S.nombre+"|"+S.hoja;
+// clave de fila: N° de fila + huella de sus primeras columnas (evita cruzar datos si el archivo cambió)
+// se calcula una sola vez por fila (se usa miles de veces en cada redibujado)
+function claveFila(f){if(f.__k)return f.__k;const hs=S.headers.filter(h=>!esColTerreno(h)).slice(0,3);
+  return Object.defineProperty(f,"__k",{value:f.__fila+"|"+norm(hs.map(h=>f[h]).join("")).slice(0,40),enumerable:false}).__k;}
+const ter=r=>S.terreno[claveFila(r.fila)]||null;
+const conUbic=r=>{const t=ter(r);return !!(t&&(t.dir||t.lat!=null));};
+const obsTer=r=>{const t=ter(r);return t&&t.obs?t.obs:"";};
+function guardarTerrenoLocal(){try{localStorage.setItem(claveAlm(),JSON.stringify(S.terreno));}catch(e){toast("No se pudo guardar en este equipo (almacenamiento lleno o bloqueado). Descarga un respaldo.");}}
+function cargarTerreno(){
+  S.terreno={};
+  try{S.terreno=JSON.parse(localStorage.getItem(claveAlm())||"{}");}catch(e){}
+  // si el archivo ya trae columnas de ubicación real (exportado antes), se recuperan sin pisar lo guardado
+  const h=k=>S.headers.find(x=>norm(x)===norm(k));
+  const hD=h("UBICACIÓN REAL"),hLa=h("LAT REAL"),hLo=h("LON REAL");
+  if(hD||(hLa&&hLo)||h("OBS. TERRENO")||h("ESTADO INSPECCIÓN")){S.filas.forEach(f=>{const k=claveFila(f);if(S.terreno[k])return;
+    const d=hD?String(f[hD]||"").trim():"",la=hLa?num(f[hLa]):null,lo=hLo?num(f[hLo]):null;
+    const ob=String(f[h("OBS. TERRENO")]||"").trim(),ei=String(f[h("ESTADO INSPECCIÓN")]||"");
+    const md=(String(f[h("MOTIVO DUDA")]||"").match(/Marcado en terreno: ([^|]+)/)||[])[1];
+    if(d||ob||(la!==null&&lo!==null)||/^realizado/i.test(ei)||md)S.terreno[k]={insp:/^realizado/i.test(ei),duda:md?md.trim():"",dir:d,lat:la!==null&&lo!==null?la:null,lon:la!==null&&lo!==null?lo:null,
+      prec:num(f[h("PRECISIÓN GPS (m)")]),obs:String(f[h("OBS. TERRENO")]||""),fecha:String(f[h("FECHA REGISTRO")]||""),
+      sinRed:/^s/i.test(String(f[h("REGISTRO SIN SEÑAL")]||"")),pend:/pendiente/i.test(String(f[h("ESTADO ENVÍO")]||"")),
+      enviado:String(f[h("ESTADO ENVÍO")]||"").replace(/^Enviado\s*/i,"")};});}
+}
+function puntoDe(r){const t=ter(r);
+  if($("chkReal").checked&&t&&t.lat!=null)return {lat:t.lat,lon:t.lon,real:true};
+  if(r.lat!==null&&r.nivel!=="err")return {lat:r.lat,lon:r.lon,real:false};
+  if(t&&t.lat!=null)return {lat:t.lat,lon:t.lon,real:true};
+  return null;}
+function linkReal(r,t){t=t||ter(r);if(!t||(!t.dir&&t.lat==null))return "";
+  if(t.lat!=null)return `https://www.google.com/maps/search/?api=1&query=${t.lat.toFixed(6)},${t.lon.toFixed(6)}`;
+  const com=comunaOficial(r.comTxt)||r.comuna||"";
+  return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent([t.dir,com,"Región Metropolitana","Chile"].filter(Boolean).join(", "));}
+function difReal(r){const t=ter(r);if(!t||t.lat==null||r.lat===null||r.nivel==="err")return "";return Math.round(dist([r.lat,r.lon],[t.lat,t.lon])*1000);}
+function toast(msg,ms){const t=$("toast");t.textContent=msg;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",ms||3500);}
+
+function abrirTerreno(i,conservar){
+  const r=S.recs[i];if(!r)return;S.editando=i;mapa.closePopup();
+  const t=conservar&&S.tmpTer?S.tmpTer:(ter(r)||{dir:"",lat:null,lon:null,prec:null,obs:""});
+  $("tNombre").textContent=r.nombre;
+  $("tOrig").innerHTML=`<b>Documento:</b> ${escH(r.dir||"sin dirección")}${r.comuna?", "+escH(r.comuna):""}<br>`+
+    (r.lat!==null&&r.nivel!=="err"?`Coordenadas: ${r.lat.toFixed(6)}, ${r.lon.toFixed(6)}`:"Sin coordenadas válidas en el documento");
+  $("tInsp").checked=t.insp!==undefined?!!t.insp:(!ter(r)||conUbic(r));
+  $("tDudaChk").checked=!!t.duda;$("tDuda").value=t.duda&&t.duda!=="Sin detalle"?t.duda:"";$("tDuda").hidden=!t.duda;
+  $("tDir").value=t.dir||"";$("tCoord").value=t.lat!=null?`${t.lat.toFixed(6)}, ${t.lon.toFixed(6)}`:"";$("tObs").value=t.obs||"";
+  S.tmpPrec=t.prec??null;
+  $("tGpsInfo").textContent=t.prec?`Precisión GPS registrada: ±${Math.round(t.prec)} m`:"";
+  $("btnBorrarT").hidden=!ter(r);
+  actualizarLinkT();
+  if(!$("dlgTerreno").open)$("dlgTerreno").showModal();
+}
+window.abrirTerreno=abrirTerreno;
+function leerFormT(){const [la,lo]=coordComb($("tCoord").value);
+  const ok=la!==null&&lo!==null&&Math.abs(la)<=90&&Math.abs(lo)<=180;
+  return {dir:$("tDir").value.trim(),lat:ok?la:null,lon:ok?lo:null,prec:S.tmpPrec,obs:$("tObs").value.trim(),
+    insp:$("tInsp").checked,duda:$("tDudaChk").checked?($("tDuda").value.trim()||"Sin detalle"):"",coordInvalida:$("tCoord").value.trim()!==""&&!ok};}
+function actualizarLinkT(){const r=S.recs[S.editando];if(!r)return;const t=leerFormT();
+  const l=(t.dir||t.lat!=null)?linkReal(r,t):"";
+  $("tLink").innerHTML=l?`<a href="${escH(l)}" target="_blank" rel="noopener">${escH(l)}</a>`:"Ingresa una dirección o coordenadas.";
+  if(t.lat!=null&&r.lat!==null&&r.nivel!=="err"){$("tGpsInfo").textContent=($("tGpsInfo").textContent.split(" · ")[0]&&S.tmpPrec?`Precisión GPS: ±${Math.round(S.tmpPrec)} m · `:"")+
+    `Diferencia con el documento: ${fmt(Math.round(dist([r.lat,r.lon],[t.lat,t.lon])*1000))} m`;}}
+["tDir","tCoord"].forEach(id=>$(id).addEventListener("input",()=>{if(id==="tCoord")S.tmpPrec=null;actualizarLinkT();}));
+$("btnGPS").onclick=()=>{
+  if(!navigator.geolocation){toast("Este navegador no permite usar el GPS.");return;}
+  $("tGpsInfo").textContent="Obteniendo posición… (puede tardar unos segundos al aire libre)";
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const {latitude:la,longitude:lo,accuracy:ac}=pos.coords;
+    $("tCoord").value=`${la.toFixed(6)}, ${lo.toFixed(6)}`;S.tmpPrec=ac;
+    $("tGpsInfo").textContent=`Precisión GPS: ±${Math.round(ac)} m`+(ac>30?" · precisión baja, espera unos segundos y vuelve a intentar":"");
+    actualizarLinkT();
+  },err=>{$("tGpsInfo").textContent=err.code===1?"Permiso de ubicación denegado. Actívalo para este sitio en el navegador.":
+      "No se pudo obtener la posición. Revisa que el GPS esté activo o ingresa las coordenadas a mano.";},
+  {enableHighAccuracy:true,timeout:20000,maximumAge:0});
+};
+$("btnMarcar").onclick=()=>{S.tmpTer=leerFormT();S.marcando=S.editando;$("dlgTerreno").close();
+  document.body.classList.add("marcando");toast("Toca el mapa en el lugar real del punto.",6000);
+  $("mapa").scrollIntoView({behavior:"smooth",block:"center"});};
+mapa.on("click",e=>{if(S.marcando===null)return;const i=S.marcando;S.marcando=null;document.body.classList.remove("marcando");
+  S.tmpTer.lat=e.latlng.lat;S.tmpTer.lon=e.latlng.lng;S.tmpTer.prec=null;abrirTerreno(i,true);$("tGpsInfo").textContent="Punto marcado en el mapa.";actualizarLinkT();});
+async function direccionDesde(lat,lon){
+  const u="https://nominatim.openstreetmap.org/reverse?"+new URLSearchParams({lat,lon,format:"jsonv2",zoom:"18",addressdetails:"1","accept-language":"es"});
+  const resp=await fetch(u);if(!resp.ok)throw new Error(resp.status);
+  const res=await resp.json();const a=res.address||{};
+  const calle=[a.road||a.pedestrian||a.footway||"",a.house_number||""].join(" ").trim();
+  const com=a.city||a.town||a.village||a.suburb||a.city_district||"";
+  return [calle,com].filter(Boolean).join(", ")||res.display_name||"";
+}
+$("btnDirGPS").onclick=async()=>{const t=leerFormT();if(t.lat==null){toast("Primero obtén o ingresa las coordenadas reales.");return;}
+  if(!navigator.onLine){toast("Sin señal: guarda el punto y la dirección se completará sola al recuperar conexión.",5000);return;}
+  $("btnDirGPS").disabled=true;
+  try{const txt=await direccionDesde(t.lat,t.lon);
+    if(txt){if(!$("tDir").value.trim()||confirm(`¿Reemplazar la dirección escrita por «${txt}»?`))$("tDir").value=txt;actualizarLinkT();}
+    else toast("No se encontró una dirección para ese punto.");
+  }catch(e){toast("Sin conexión con el servicio de direcciones. Escribe la dirección a mano.");}
+  finally{setTimeout(()=>$("btnDirGPS").disabled=false,1100);}};
+$("btnGuardarT").onclick=()=>{const r=S.recs[S.editando];const t=leerFormT();
+  if(t.coordInvalida){toast("Las coordenadas no son válidas. Usa el formato: -33.456789, -70.597123");return;}
+  if(!t.dir&&t.lat==null&&!t.obs&&!t.insp&&!t.duda){toast("Marca la inspección como realizada o ingresa una dirección, coordenadas u observación.");return;}
+  if(t.lat!=null&&!enChile(t.lat,t.lon)&&!confirm("El punto queda fuera de Chile. ¿Guardar de todas formas?"))return;
+  delete t.coordInvalida;t.fecha=new Date().toLocaleString("es-CL");
+  t.pend=true;t.sinRed=!navigator.onLine;t.enviado="";
+  if(t.lat!=null&&!t.dir)t.dirPend=true;       // la dirección se busca sola cuando haya conexión
+  S.terreno[claveFila(r.fila)]=t;guardarTerrenoLocal();S.tmpTer=null;$("dlgTerreno").close();
+  const que=t.dir||t.lat!=null?"Ubicación real guardada":(t.obs?"Observación guardada":"Inspección guardada");
+  render(false);
+  if(r.insp==="duda")toastBtn(`${que} con duda (ámbar): ${r.motivos[0]}${r.motivos.length>1?` y ${r.motivos.length-1} más`:""}.`,"Siguiente ▶",siguientePendiente,8000);
+  else if(r.insp==="ok")toastBtn(navigator.onLine?`${que}: punto N° ${ordenDe(r)??"—"} realizado.`:`${que} sin señal: punto realizado, queda pendiente de envío.`,"Siguiente ▶",siguientePendiente,7000);
+  else toast(navigator.onLine?`${que} en este equipo.`:`${que} sin señal. Queda pendiente y se podrá enviar al recuperar conexión.`,navigator.onLine?3500:5000);
+  if(navigator.onLine)procesarColaDirecciones();};
+$("tDudaChk").onchange=()=>{$("tDuda").hidden=!$("tDudaChk").checked;if($("tDudaChk").checked)$("tDuda").focus();};
+$("btnBorrarT").onclick=()=>{const r=S.recs[S.editando];if(!confirm("¿Borrar la ubicación real de este registro?"))return;
+  delete S.terreno[claveFila(r.fila)];guardarTerrenoLocal();$("dlgTerreno").close();render(false);};
+$("btnCerrarT").onclick=()=>{S.tmpTer=null;$("dlgTerreno").close();};
+
+// link de Google Maps del punto que muestra la app (ubicación real si existe; si no, la del documento)
+const linkMaps=r=>{const p=puntoDe(r);return p?`https://www.google.com/maps/search/?api=1&query=${p.lat.toFixed(6)},${p.lon.toFixed(6)}`:"";};
+// Hoja con todas las columnas del Excel + columnas de ruta y terreno a la derecha de la dirección original.
+// f0 = fila (base 0) donde va el encabezado.
+function hojaDatos(recs,fechaEnvio,f0){
+  f0=f0||0;calcInsp();
+  const base=S.headers.filter(h=>!esColTerreno(h));
+  const iDir=S.cfg.dir?base.indexOf(S.cfg.dir):-1;const pos=iDir>=0?iDir+1:base.length;
+  const enc=[...base.slice(0,pos),...COLS_TER,...base.slice(pos)];
+  const cMaps=pos+COLS_TER.indexOf("Ubicación maps"),cLink=pos+COLS_TER.indexOf("LINK UBICACIÓN REAL");
+  const filas=[],links=[];let nReal=0;
+  recs.forEach((r,k)=>{const t=ter(r),l=t?linkReal(r):"",gm=linkMaps(r);
+    const valid=[...r.obs,t&&t.dirAuto?"Dirección real obtenida automáticamente desde el GPS (validar)":"",t&&t.dirPend?"Dirección pendiente: se registró sin señal":""].filter(Boolean).join(" | ");
+    const envio=!t?"":(fechaEnvio?`Enviado ${fechaEnvio}`:(t.pend?"Pendiente":(t.enviado?`Enviado ${t.enviado}`:"Enviado")));
+    const pre=[ordenDe(r)??"",txtInsp(r),gm,r.comuna||"Sin comuna"],post=[r.motivos.join(" | "),r.validado?`Validada ${r.validado}`:""];
+    const extra0=t?[t.dir||"",t.lat??"",t.lon??"",l?"Abrir ubicación real":"",t.prec!=null?Math.round(t.prec):"",difReal(r),t.fecha||"",t.obs||"",valid,t.sinRed?"Sí":"No",envio]
+                 :["","","","","","","","",valid,"",""];
+    const vals=base.map(h=>r.fila[h]);filas.push([...vals.slice(0,pos),...pre,...extra0,...post,...vals.slice(pos)]);
+    if(gm)links.push([k,cMaps,gm,"Abrir en Google Maps"]);
+    if(l){links.push([k,cLink,l,"Abrir ubicación real"]);nReal++;}});
+  const ws={};XLSX.utils.sheet_add_aoa(ws,[enc,...filas],{origin:{r:f0,c:0}});
+  links.forEach(([k,c,url,tip])=>{const ref=XLSX.utils.encode_cell({r:f0+1+k,c});if(ws[ref])ws[ref].l={Target:url,Tooltip:tip};});
+  ws["!cols"]=enc.map(h=>({wch:h==="Ubicación maps"?46:COLS_TER.includes(h)?(["UBICACIÓN REAL","OBS. TERRENO","OBS. VALIDACIÓN","MOTIVO DUDA"].includes(h)?36:16):Math.min(30,Math.max(10,String(h).length+2))}));
+  ws["!autofilter"]={ref:XLSX.utils.encode_range({s:{r:f0,c:0},e:{r:f0+filas.length,c:enc.length-1}})};
+  return {ws,enc,pos,nReal,nMaps:links.length-nReal};
+}
+const nomBase=()=>(S.nombre||"registros").replace(/[\\/:*?"<>|]/g,"_");
+function construirExcel(recs,sufijo,fechaEnvio){
+  const h=hojaDatos(recs,fechaEnvio,0);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,h.ws,(S.hoja||"Datos").slice(0,31));
+  const out=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+  return {nom:nomBase()+sufijo+".xlsx",links:h.nReal,maps:h.nMaps,blob:new Blob([out],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})};
+}
+
+/* ---------- Excel con dashboard + módulo VBA (.bas) */
+const VBA_PLANTILLA = "Attribute VB_Name = \"GeoInspecciones\"\n' =====================================================================\n'  GEO INSPECCIONES RM - MACROS Y BOTONES\n'  Generado por la app GEO Inspecciones RM para: {{ARCHIVO}}\n'  Fecha de exportaci\u00f3n: {{FECHA}}\n'  Hojas: DASHBOARD, DATOS, LISTAS, INSTRUCCIONES\n'\n'  1) Guarde el Excel como \"Libro de Excel habilitado para macros (.xlsm)\"\n'  2) Alt+F11 > Archivo > Importar archivo... > este archivo .bas\n'  3) Alt+F8 > Configurar_Libro > Ejecutar (una sola vez)\n' =====================================================================\nOption Explicit\n\nPrivate Const H_DASH As String = \"DASHBOARD\"\nPrivate Const H_DATOS As String = \"DATOS\"\nPrivate Const H_LISTAS As String = \"LISTAS\"\nPrivate Const C_COMUNA As String = \"C5\"\nPrivate Const C_ESTADO As String = \"F5\"\nPrivate Const FILA_ENC As Long = 3      ' encabezados de la hoja DATOS\nPrivate Const FILA_INI As Long = 4      ' primera fila de datos\n\n' Nombres de columnas que agrega la app (se buscan sin importar tildes ni may\u00fasculas)\nPrivate Const COL_RUTA As String = \"N\u00b0 RUTA\"\nPrivate Const COL_ESTADO As String = \"ESTADO INSPECCI\u00d3N\"\nPrivate Const COL_MAPS As String = \"Ubicaci\u00f3n maps\"\nPrivate Const COL_COMUNA As String = \"COMUNA RM\"\nPrivate Const COL_FECHA As String = \"FECHA REGISTRO\"\nPrivate Const COL_MOTIVO As String = \"MOTIVO DUDA\"\n\n' =====================================================================\n' UTILIDADES\n' =====================================================================\nPrivate Function HojaExiste(ByVal nombre As String) As Boolean\n    Dim ws As Worksheet\n    On Error Resume Next\n    Set ws = ThisWorkbook.Worksheets(nombre)\n    HojaExiste = Not ws Is Nothing\n    On Error GoTo 0\nEnd Function\n\nPrivate Function Hoja(ByVal nombre As String) As Worksheet\n    If Not HojaExiste(nombre) Then\n        MsgBox \"No se encontr\u00f3 la hoja '\" & nombre & \"'.\" & vbCrLf & _\n               \"Revise que la pesta\u00f1a tenga exactamente ese nombre.\", vbCritical\n        End\n    End If\n    Set Hoja = ThisWorkbook.Worksheets(nombre)\nEnd Function\n\nPrivate Function SinTildes(ByVal t As String) As String\n    Dim a As String, b As String, i As Integer\n    a = \"\u00c1\u00c9\u00cd\u00d3\u00da\u00dc\u00d1\u00e1\u00e9\u00ed\u00f3\u00fa\u00fc\u00f1\u00b0\u00ba\"\n    b = \"AEIOUUNaeiouunoo\"\n    For i = 1 To Len(a)\n        t = Replace(t, Mid(a, i, 1), Mid(b, i, 1))\n    Next i\n    SinTildes = UCase(Trim(t))\nEnd Function\n\nPrivate Function UltimaCol() As Long\n    With Hoja(H_DATOS)\n        UltimaCol = .Cells(FILA_ENC, .Columns.Count).End(xlToLeft).Column\n    End With\nEnd Function\n\nPrivate Function UltimaFila() As Long\n    With Hoja(H_DATOS)\n        UltimaFila = .UsedRange.Row + .UsedRange.Rows.Count - 1\n    End With\n    If UltimaFila < FILA_INI Then UltimaFila = FILA_INI\nEnd Function\n\n' Columna de DATOS seg\u00fan su encabezado (fila 3)\nPrivate Function Col(ByVal encabezado As String, Optional ByVal obligatoria As Boolean = True) As Long\n    Dim ws As Worksheet, c As Long, buscado As String\n    Set ws = Hoja(H_DATOS)\n    buscado = SinTildes(encabezado)\n    For c = 1 To UltimaCol()\n        If SinTildes(CStr(ws.Cells(FILA_ENC, c).Value)) = buscado Then\n            Col = c\n            Exit Function\n        End If\n    Next c\n    If obligatoria Then\n        MsgBox \"No se encontr\u00f3 la columna '\" & encabezado & \"' en la hoja DATOS (fila \" & FILA_ENC & \").\" & vbCrLf & _\n               \"No cambie el nombre de las columnas que agrega la app.\", vbCritical\n        End\n    End If\nEnd Function\n\nPrivate Function RangoDatos() As Range\n    With Hoja(H_DATOS)\n        Set RangoDatos = .Range(.Cells(FILA_INI, 1), .Cells(UltimaFila(), UltimaCol()))\n    End With\nEnd Function\n\nPrivate Function CarpetaSalida() As String\n    Dim ruta As String\n    ruta = ThisWorkbook.Path\n    ' Libro sin guardar o en OneDrive: usar Documentos\n    If ruta = \"\" Or LCase(Left(ruta, 4)) = \"http\" Then\n        ruta = Environ(\"USERPROFILE\") & \"\\Documents\"\n    End If\n    CarpetaSalida = ruta & Application.PathSeparator\nEnd Function\n\nPrivate Sub AbrirLink(ByVal url As String)\n    If LCase(Left(Trim(url), 4)) <> \"http\" Then\n        MsgBox \"Este registro no tiene link de ubicaci\u00f3n (sin coordenadas v\u00e1lidas).\", vbExclamation\n        Exit Sub\n    End If\n    On Error GoTo ManejoError\n    ThisWorkbook.FollowHyperlink Address:=Trim(url), NewWindow:=True\n    Exit Sub\nManejoError:\n    MsgBox \"No se pudo abrir el link:\" & vbCrLf & url, vbExclamation\nEnd Sub\n\n' Filas seleccionadas y visibles dentro de DATOS (Nothing si no hay)\nPrivate Function FilasSeleccionadas() As Range\n    Dim ws As Worksheet, r As Range\n    Set ws = Hoja(H_DATOS)\n    If ActiveSheet.Name <> H_DATOS Then\n        MsgBox \"Seleccione en la hoja DATOS una celda de cada fila que quiere marcar.\", vbExclamation\n        Exit Function\n    End If\n    If TypeName(Selection) <> \"Range\" Then\n        MsgBox \"Seleccione celdas de la hoja DATOS (no un bot\u00f3n ni una imagen).\", vbExclamation\n        Exit Function\n    End If\n    Set r = Intersect(Selection.EntireRow, RangoDatos())\n    If r Is Nothing Then\n        MsgBox \"Seleccione filas con datos (desde la fila \" & FILA_INI & \").\", vbExclamation\n        Exit Function\n    End If\n    On Error Resume Next\n    Set FilasSeleccionadas = r.SpecialCells(xlCellTypeVisible)\n    On Error GoTo 0\nEnd Function\n\n' Pinta cada fila de DATOS seg\u00fan su estado: verde realizado, rojo pendiente, \u00e1mbar con duda\nPrivate Sub ColorearFilas()\n    Dim ws As Worksheet, f As Long, cE As Long, uc As Long, est As String, rng As Range\n    Set ws = Hoja(H_DATOS)\n    cE = Col(COL_ESTADO)\n    uc = UltimaCol()\n    For f = FILA_INI To UltimaFila()\n        Set rng = ws.Range(ws.Cells(f, 1), ws.Cells(f, uc))\n        est = LCase(CStr(ws.Cells(f, cE).Value))\n        If InStr(est, \"duda\") > 0 Then\n            rng.Interior.Color = RGB(255, 242, 204)\n            ws.Cells(f, cE).Font.Color = RGB(156, 101, 0)\n        ElseIf Left(est, 9) = \"realizado\" Then\n            rng.Interior.Color = RGB(226, 239, 218)\n            ws.Cells(f, cE).Font.Color = RGB(46, 125, 79)\n        ElseIf Left(est, 9) = \"pendiente\" Then\n            rng.Interior.Color = RGB(250, 219, 216)\n            ws.Cells(f, cE).Font.Color = RGB(192, 0, 0)\n        Else\n            rng.Interior.Pattern = xlNone\n        End If\n        ws.Cells(f, cE).Font.Bold = True\n    Next f\nEnd Sub\n\n' =====================================================================\n' EXPORTAR A PDF\n' =====================================================================\nPrivate Sub ExportarPDF(ByVal nombreHoja As String, ByVal prefijo As String, ByVal detalle As String)\n    On Error GoTo ManejoError\n    Dim archivo As String\n    archivo = CarpetaSalida() & prefijo & \"_\" & detalle & \"_\" & Format(Now, \"yyyy-mm-dd_hhmm\") & \".pdf\"\n    Application.Calculate\n    Hoja(nombreHoja).ExportAsFixedFormat Type:=xlTypePDF, Filename:=archivo, _\n        Quality:=xlQualityStandard, IncludeDocProperties:=True, _\n        IgnorePrintAreas:=False, OpenAfterPublish:=True\n    MsgBox \"PDF guardado en:\" & vbCrLf & archivo, vbInformation, \"Exportar PDF\"\n    Exit Sub\nManejoError:\n    MsgBox \"No se pudo exportar el PDF.\" & vbCrLf & Err.Description, vbCritical, \"Exportar PDF\"\nEnd Sub\n\nSub Exportar_Dashboard_PDF()\n    ExportarPDF H_DASH, \"Avance_Inspecciones\", Replace(CStr(Hoja(H_DASH).Range(C_COMUNA).Value), \" \", \"_\")\nEnd Sub\n\n' Exporta lo que se ve en DATOS (respeta los filtros aplicados)\nSub Exportar_Datos_PDF()\n    On Error Resume Next      ' sin impresora instalada PageSetup puede fallar\n    With Hoja(H_DATOS).PageSetup\n        .Orientation = xlLandscape\n        .Zoom = False\n        .FitToPagesWide = 1\n        .FitToPagesTall = False\n        .PrintTitleRows = \"$\" & FILA_ENC & \":$\" & FILA_ENC\n    End With\n    On Error GoTo 0\n    ExportarPDF H_DATOS, \"Registros_Inspeccion\", Replace(CStr(Hoja(H_DASH).Range(C_ESTADO).Value), \" \", \"_\")\nEnd Sub\n\n' =====================================================================\n' FILTROS (comuna y estado elegidos en el DASHBOARD)\n' =====================================================================\nSub Aplicar_Filtros()\n    Dim ws As Worksheet, rng As Range, cCom As Long, cEst As Long, com As String, est As String\n    Set ws = Hoja(H_DATOS)\n    cCom = Col(COL_COMUNA)\n    cEst = Col(COL_ESTADO)\n    com = Trim(CStr(Hoja(H_DASH).Range(C_COMUNA).Value))\n    est = Trim(CStr(Hoja(H_DASH).Range(C_ESTADO).Value))\n    Set rng = ws.Range(ws.Cells(FILA_ENC, 1), ws.Cells(UltimaFila(), UltimaCol()))\n    If ws.AutoFilterMode Then ws.AutoFilterMode = False\n    rng.AutoFilter\n    If com <> \"\" And com <> \"Todas\" Then rng.AutoFilter Field:=cCom, Criteria1:=com\n    Select Case est\n        Case \"Pendiente\": rng.AutoFilter Field:=cEst, Criteria1:=\"Pendiente\"\n        Case \"Realizado\": rng.AutoFilter Field:=cEst, Criteria1:=\"Realizado\"\n        Case \"Con duda\": rng.AutoFilter Field:=cEst, Criteria1:=\"=*duda*\"\n    End Select\n    ws.Activate\n    ws.Cells(FILA_INI, 1).Select\nEnd Sub\n\nSub Limpiar_Filtros()\n    With Hoja(H_DASH)\n        .Range(C_COMUNA).Value = \"Todas\"\n        .Range(C_ESTADO).Value = \"Todos\"\n    End With\n    With Hoja(H_DATOS)\n        If .FilterMode Then .ShowAllData\n    End With\n    Ir_Dashboard\nEnd Sub\n\n' =====================================================================\n' RUTA\n' =====================================================================\nSub Ordenar_por_Ruta()\n    Dim ws As Worksheet, c As Long\n    Set ws = Hoja(H_DATOS)\n    c = Col(COL_RUTA)\n    If ws.FilterMode Then ws.ShowAllData\n    RangoDatos().Sort Key1:=ws.Cells(FILA_INI, c), Order1:=xlAscending, Header:=xlNo\n    ws.Activate\n    ws.Cells(FILA_INI, c).Select\nEnd Sub\n\nSub Siguiente_Pendiente()\n    Dim ws As Worksheet, f As Long, cR As Long, cE As Long, cM As Long\n    Dim mejor As Long, nMin As Double, v As Variant, est As String\n    Set ws = Hoja(H_DATOS)\n    cR = Col(COL_RUTA): cE = Col(COL_ESTADO): cM = Col(COL_MAPS)\n    nMin = 1E+15\n    For f = FILA_INI To UltimaFila()\n        v = ws.Cells(f, cR).Value\n        est = LCase(CStr(ws.Cells(f, cE).Value))\n        If Left(est, 9) <> \"realizado\" And est <> \"\" And IsNumeric(v) And Len(CStr(v)) > 0 Then\n            If CDbl(v) < nMin Then\n                nMin = CDbl(v)\n                mejor = f\n            End If\n        End If\n    Next f\n    If mejor = 0 Then\n        MsgBox \"No quedan puntos pendientes con N\u00b0 de ruta.\", vbInformation, \"Siguiente pendiente\"\n        Exit Sub\n    End If\n    If ws.FilterMode Then ws.ShowAllData\n    ws.Activate\n    Application.Goto ws.Cells(mejor, 1), True\n    ws.Rows(mejor).Select\n    If MsgBox(\"Siguiente punto: N\u00b0 \" & nMin & \" (fila \" & mejor & \")\" & vbCrLf & _\n              \"Estado: \" & ws.Cells(mejor, cE).Value & vbCrLf & vbCrLf & _\n              \"\u00bfAbrir la ubicaci\u00f3n en Google Maps?\", vbYesNo + vbQuestion, \"Siguiente pendiente\") = vbYes Then\n        AbrirLink CStr(ws.Cells(mejor, cM).Value)\n    End If\nEnd Sub\n\nSub Abrir_en_Maps()\n    If ActiveSheet.Name <> H_DATOS Or ActiveCell.Row < FILA_INI Then\n        MsgBox \"Seleccione en la hoja DATOS una celda de la fila que quiere abrir.\", vbExclamation\n        Exit Sub\n    End If\n    AbrirLink CStr(Hoja(H_DATOS).Cells(ActiveCell.Row, Col(COL_MAPS)).Value)\nEnd Sub\n\n' =====================================================================\n' MARCAR AVANCE (las filas seleccionadas en DATOS)\n' =====================================================================\nPrivate Sub MarcarEstado(ByVal nuevo As String, Optional ByVal motivo As String = \"\")\n    Dim ws As Worksheet, sel As Range, area As Range, fila As Range\n    Dim cE As Long, cF As Long, cMo As Long, f As Long, n As Long, ant As String, mot As String\n    Set sel = FilasSeleccionadas()\n    If sel Is Nothing Then Exit Sub\n    Set ws = Hoja(H_DATOS)\n    cE = Col(COL_ESTADO): cF = Col(COL_FECHA, False): cMo = Col(COL_MOTIVO, False)\n    Application.ScreenUpdating = False\n    For Each area In sel.Areas\n        For Each fila In area.Rows\n            f = fila.Row\n            ant = LCase(CStr(ws.Cells(f, cE).Value))\n            mot = \"\"\n            If cMo > 0 Then mot = CStr(ws.Cells(f, cMo).Value)\n            Select Case nuevo\n                Case \"Realizado\"\n                    If InStr(mot, \"Marcado en terreno\") > 0 Then\n                        ws.Cells(f, cE).Value = \"Realizado con duda\"\n                    Else\n                        ws.Cells(f, cE).Value = \"Realizado\"\n                    End If\n                    If cF > 0 Then\n                        If Trim(CStr(ws.Cells(f, cF).Value)) = \"\" Then ws.Cells(f, cF).Value = Format(Now, \"dd-mm-yyyy hh:mm\")\n                    End If\n                Case \"Duda\"\n                    If Left(ant, 9) = \"realizado\" Then\n                        ws.Cells(f, cE).Value = \"Realizado con duda\"\n                    Else\n                        ws.Cells(f, cE).Value = \"Pendiente con duda\"\n                    End If\n                    If cMo > 0 Then\n                        If mot <> \"\" Then mot = mot & \" | \"\n                        ws.Cells(f, cMo).Value = mot & \"Marcado en terreno: \" & motivo\n                    End If\n                Case \"Pendiente\"\n                    ws.Cells(f, cE).Value = \"Pendiente\"\n            End Select\n            n = n + 1\n        Next fila\n    Next area\n    ColorearFilas\n    Application.ScreenUpdating = True\n    Application.Calculate\n    MsgBox n & \" fila(s) actualizadas.\", vbInformation, \"Avance\"\nEnd Sub\n\nSub Marcar_Realizado()\n    MarcarEstado \"Realizado\"\nEnd Sub\n\nSub Marcar_Pendiente()\n    MarcarEstado \"Pendiente\"\nEnd Sub\n\nSub Marcar_Con_Duda()\n    Dim motivo As String\n    If ActiveSheet.Name <> H_DATOS Then\n        MsgBox \"Seleccione en la hoja DATOS la(s) fila(s) con duda.\", vbExclamation\n        Exit Sub\n    End If\n    motivo = Trim(InputBox(\"Motivo de la duda (ej.: no se encontr\u00f3 el poste, numeraci\u00f3n no coincide):\", \"Marcar con duda\"))\n    If motivo = \"\" Then Exit Sub\n    MarcarEstado \"Duda\", motivo\nEnd Sub\n\n' =====================================================================\n' NAVEGACI\u00d3N Y ACTUALIZACI\u00d3N\n' =====================================================================\nSub Ir_Dashboard()\n    Hoja(H_DASH).Activate\n    Hoja(H_DASH).Range(\"A1\").Select\nEnd Sub\n\nSub Ir_Datos()\n    Hoja(H_DATOS).Activate\n    Hoja(H_DATOS).Cells(FILA_INI, 1).Select\nEnd Sub\n\nSub Actualizar()\n    Application.ScreenUpdating = False\n    ColorearFilas\n    Application.CalculateFull\n    Application.ScreenUpdating = True\n    MsgBox \"Indicadores y colores actualizados.\", vbInformation, \"Actualizar\"\nEnd Sub\n\n' =====================================================================\n' CONFIGURAR LIBRO: formato, listas, colores y botones\n' (se puede ejecutar varias veces sin duplicar botones)\n' =====================================================================\nPrivate Sub BorrarBotones(ByVal ws As Worksheet)\n    Dim i As Long\n    For i = ws.Shapes.Count To 1 Step -1\n        If Left(ws.Shapes(i).Name, 4) = \"btn_\" Then ws.Shapes(i).Delete\n    Next i\nEnd Sub\n\nPrivate Sub FilaDeBotones(ByVal ws As Worksheet, ByVal zona As Range, _\n                          textos As Variant, macros As Variant, colores As Variant)\n    Dim i As Integer, n As Integer, ancho As Double\n    Const SEP As Double = 4\n    n = UBound(textos) + 1\n    ancho = (zona.Width - SEP * (n - 1)) / n\n    For i = 0 To n - 1\n        With ws.Shapes.AddShape(msoShapeRoundedRectangle, _\n                zona.Left + i * (ancho + SEP), zona.Top + 2, ancho, zona.Height - 4)\n            .Name = \"btn_\" & macros(i)\n            .Fill.ForeColor.RGB = colores(i)\n            .Line.Visible = msoFalse\n            .Placement = xlFreeFloating\n            .OnAction = macros(i)\n            With .TextFrame2\n                .VerticalAnchor = msoAnchorMiddle\n                .MarginLeft = 2\n                .MarginRight = 2\n                With .TextRange\n                    .Text = textos(i)\n                    .ParagraphFormat.Alignment = msoAlignCenter\n                    .Font.Name = \"Arial\"\n                    .Font.Size = 9\n                    .Font.Bold = msoTrue\n                    .Font.Fill.ForeColor.RGB = RGB(255, 255, 255)\n                End With\n            End With\n        End With\n    Next i\nEnd Sub\n\nPrivate Sub FormatoDashboard()\n    Dim ws As Worksheet, ultima As Long, nCom As Long\n    Set ws = Hoja(H_DASH)\n    With ws\n        .Cells.Font.Name = \"Arial\"\n        .Cells.Font.Size = 10\n        .Range(\"A1\").Font.Size = 16\n        .Range(\"A1\").Font.Bold = True\n        .Range(\"A1\").Font.Color = RGB(27, 43, 52)\n        .Range(\"A2\").Font.Color = RGB(91, 107, 115)\n        .Columns(\"A\").ColumnWidth = 2\n        .Columns(\"B\").ColumnWidth = 24\n        .Columns(\"C:G\").ColumnWidth = 14\n        .Columns(\"H:I\").ColumnWidth = 18\n        ' filtros\n        .Range(\"B5,E5\").Font.Bold = True\n        With .Range(C_COMUNA & \",\" & C_ESTADO)\n            .Interior.Color = RGB(255, 242, 204)\n            .Font.Bold = True\n            .Borders.LineStyle = xlContinuous\n        End With\n        ' indicadores\n        With .Range(\"B7:F7,H7:I7\")\n            .Font.Bold = True\n            .Font.Color = RGB(91, 107, 115)\n            .HorizontalAlignment = xlCenter\n        End With\n        With .Range(\"B8:F8,H8:I8\")\n            .Font.Size = 20\n            .Font.Bold = True\n            .HorizontalAlignment = xlCenter\n            .Borders(xlEdgeBottom).LineStyle = xlContinuous\n        End With\n        .Range(\"C8\").Font.Color = RGB(46, 125, 79)\n        .Range(\"D8\").Font.Color = RGB(192, 0, 0)\n        .Range(\"E8\").Font.Color = RGB(196, 128, 0)\n        .Range(\"F8\").NumberFormat = \"0%\"\n        .Range(\"H8:I8\").NumberFormat = \"#,##0.0\"\n        .Range(\"B9\").Font.Italic = True\n        .Range(\"B9\").Font.Color = RGB(91, 107, 115)\n        ' tabla por comuna\n        .Range(\"B10\").Font.Bold = True\n        .Range(\"B10\").Font.Size = 12\n        ultima = .Cells(.Rows.Count, \"B\").End(xlUp).Row\n        With .Range(\"B11:G11\")\n            .Interior.Color = RGB(27, 43, 52)\n            .Font.Color = RGB(255, 255, 255)\n            .Font.Bold = True\n        End With\n        If ultima > 11 Then\n            .Range(\"B11:G\" & ultima).Borders.LineStyle = xlContinuous\n            .Range(\"B11:G\" & ultima).Borders.Color = RGB(203, 211, 207)\n            .Range(\"G12:G\" & ultima).NumberFormat = \"0%\"\n            .Range(\"D12:D\" & ultima).Font.Color = RGB(46, 125, 79)\n            .Range(\"E12:E\" & ultima).Font.Color = RGB(192, 0, 0)\n            .Range(\"F12:F\" & ultima).Font.Color = RGB(196, 128, 0)\n            .Range(\"B\" & ultima & \":G\" & ultima).Font.Bold = True\n            .Range(\"B\" & ultima & \":G\" & ultima).Interior.Color = RGB(238, 241, 236)\n            ' barra de avance dentro de la columna % avance\n            .Range(\"G12:G\" & ultima - 1).FormatConditions.Delete\n            With .Range(\"G12:G\" & ultima - 1).FormatConditions.AddDatabar\n                .BarColor.Color = RGB(46, 125, 79)\n            End With\n        End If\n    End With\n    ' listas desplegables de los filtros\n    nCom = Hoja(H_LISTAS).Cells(Hoja(H_LISTAS).Rows.Count, \"A\").End(xlUp).Row\n    With ws.Range(C_COMUNA).Validation\n        .Delete\n        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:=\"=\" & H_LISTAS & \"!$A$2:$A$\" & nCom\n    End With\n    With ws.Range(C_ESTADO).Validation\n        .Delete\n        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:=\"=\" & H_LISTAS & \"!$B$2:$B$5\"\n    End With\nEnd Sub\n\nPrivate Sub FormatoDatos()\n    Dim ws As Worksheet, uc As Long\n    Set ws = Hoja(H_DATOS)\n    uc = UltimaCol()\n    With ws\n        .Range(\"A1\").Font.Size = 14\n        .Range(\"A1\").Font.Bold = True\n        With .Range(.Cells(FILA_ENC, 1), .Cells(FILA_ENC, uc))\n            .Interior.Color = RGB(27, 43, 52)\n            .Font.Color = RGB(255, 255, 255)\n            .Font.Bold = True\n            .WrapText = True\n            .VerticalAlignment = xlCenter\n        End With\n        .Rows(FILA_ENC).RowHeight = 32\n        .Cells(FILA_ENC, Col(COL_RUTA)).Interior.Color = RGB(242, 183, 5)\n        .Cells(FILA_ENC, Col(COL_RUTA)).Font.Color = RGB(27, 43, 52)\n        .Cells(FILA_ENC, Col(COL_ESTADO)).Interior.Color = RGB(242, 183, 5)\n        .Cells(FILA_ENC, Col(COL_ESTADO)).Font.Color = RGB(27, 43, 52)\n        .Range(.Cells(FILA_INI, Col(COL_MAPS)), .Cells(UltimaFila(), Col(COL_MAPS))).Font.Color = RGB(5, 99, 193)\n        If Not .AutoFilterMode Then .Range(.Cells(FILA_ENC, 1), .Cells(UltimaFila(), uc)).AutoFilter\n        .Activate\n    End With\n    ActiveWindow.FreezePanes = False\n    ws.Cells(FILA_INI, 1).Select\n    ActiveWindow.FreezePanes = True\n    ColorearFilas\nEnd Sub\n\nSub Configurar_Libro()\n    Dim faltan As String, nombres As Variant, i As Integer\n    Dim azul As Long, verde As Long, rojo As Long, gris As Long, ambar As Long\n\n    ' 1) Verificar que existan todas las hojas\n    nombres = Array(H_DASH, H_DATOS, H_LISTAS)\n    For i = 0 To UBound(nombres)\n        If Not HojaExiste(nombres(i)) Then faltan = faltan & \"  - \" & nombres(i) & vbCrLf\n    Next i\n    If faltan <> \"\" Then\n        MsgBox \"No se encontraron estas hojas:\" & vbCrLf & faltan & vbCrLf & _\n               \"Use el Excel descargado desde la app (bot\u00f3n Excel con dashboard + macros).\", _\n               vbCritical, \"Configurar libro\"\n        Exit Sub\n    End If\n\n    ' 2) Formato, listas, colores y botones\n    On Error GoTo ManejoError\n    azul = RGB(46, 117, 182): verde = RGB(84, 130, 53): rojo = RGB(192, 0, 0)\n    gris = RGB(89, 89, 89): ambar = RGB(191, 127, 0)\n    Application.ScreenUpdating = False\n\n    FormatoDatos\n    FormatoDashboard\n\n    ' DASHBOARD (fila 4)\n    BorrarBotones Hoja(H_DASH)\n    Hoja(H_DASH).Rows(4).RowHeight = 30\n    FilaDeBotones Hoja(H_DASH), Hoja(H_DASH).Range(\"B4:I4\"), _\n        Array(\"Aplicar filtros\", \"Limpiar filtros\", \"Siguiente pendiente\", \"Ordenar por ruta\", _\n              \"Ver registros\", \"Exportar PDF\", \"Actualizar\"), _\n        Array(\"Aplicar_Filtros\", \"Limpiar_Filtros\", \"Siguiente_Pendiente\", \"Ordenar_por_Ruta\", _\n              \"Ir_Datos\", \"Exportar_Dashboard_PDF\", \"Actualizar\"), _\n        Array(azul, gris, verde, azul, azul, rojo, gris)\n\n    ' DATOS (fila 2)\n    BorrarBotones Hoja(H_DATOS)\n    Hoja(H_DATOS).Rows(2).RowHeight = 30\n    FilaDeBotones Hoja(H_DATOS), Hoja(H_DATOS).Range(Hoja(H_DATOS).Cells(2, 1), Hoja(H_DATOS).Cells(2, 8)), _\n        Array(\"Marcar realizado\", \"Marcar con duda\", \"Volver a pendiente\", \"Abrir en Maps\", _\n              \"Siguiente pendiente\", \"Exportar PDF\", \"Dashboard\"), _\n        Array(\"Marcar_Realizado\", \"Marcar_Con_Duda\", \"Marcar_Pendiente\", \"Abrir_en_Maps\", _\n              \"Siguiente_Pendiente\", \"Exportar_Datos_PDF\", \"Ir_Dashboard\"), _\n        Array(verde, ambar, rojo, azul, verde, rojo, azul)\n\n    Application.ScreenUpdating = True\n    Application.CalculateFull\n    Ir_Dashboard\n    MsgBox \"Libro configurado: formato, listas, colores y botones.\" & vbCrLf & _\n           \"Guarde el libro como 'Libro de Excel habilitado para macros (.xlsm)'.\", _\n           vbInformation, \"Configurar libro\"\n    Exit Sub\nManejoError:\n    Application.ScreenUpdating = True\n    MsgBox \"Error al configurar el libro: \" & Err.Description, vbCritical, \"Configurar libro\"\nEnd Sub\n";
+// el editor de VBA de Excel en español importa los .bas en Windows-1252
+function aCP1252(t){const esp={"€":128,"‚":130,"„":132,"…":133,"‘":145,"’":146,"“":147,"”":148,"–":150,"—":151};
+  const b=new Uint8Array(t.length);for(let i=0;i<t.length;i++){const c=t.charCodeAt(i);b[i]=c<128||(c>=160&&c<256)?c:(esp[t[i]]||63);}return b;}
+async function exportarDashboardVBA(){
+  if(!S.recs.length){toast("Carga un archivo primero.");return;}
+  const btn=$("btnXlsVBA");btn.disabled=true;
+  try{
+    calcInsp();asegurarOrden();
+    const recs=[...S.recs].sort((a,b)=>((ordenDe(a)??1e9)-(ordenDe(b)??1e9))||(a.fila.__fila-b.fila.__fila));
+    const fecha=new Date().toLocaleString("es-CL");
+    // DATOS: título en fila 1, botones en fila 2, encabezados en fila 3
+    const h=hojaDatos(recs,"",2);
+    XLSX.utils.sheet_add_aoa(h.ws,[[`Registros de inspección · ${S.nombre} · orden de ruta`]],{origin:"A1"});
+    const L=c=>XLSX.utils.encode_col(c),cCom=L(h.pos+COLS_TER.indexOf("COMUNA RM")),cEst=L(h.pos+COLS_TER.indexOf("ESTADO INSPECCIÓN"));
+    const R=c=>`DATOS!$${c}$4:$${c}$20000`,F=(f,z)=>z?{t:"n",f,z}:{t:"n",f};
+    const cnt=(crit,est)=>`COUNTIFS(${R(cCom)},${crit}${est?`,${R(cEst)},"${est}"`:""})`;
+    const comunas=[...new Set(recs.map(r=>r.comuna||"Sin comuna"))].sort((a,b)=>a.localeCompare(b,"es"));
+    const l=rutaLista(),falta=l.filter(r=>r.insp!=="ok"),i0=l.findIndex(r=>r.insp!=="ok");
+    const km=+(largo(l)*FACTOR_VIAL).toFixed(1),kmF=+(largo(falta,i0>0?xy(l[i0-1]):null)*FACTOR_VIAL).toFixed(1);
+    const C="LISTAS!$D$2";
+    const dash=[["GEO INSPECCIONES RM · DASHBOARD DE AVANCE"],[`Archivo: ${S.nombre} · Hoja: ${S.hoja} · Exportado: ${fecha}`],[],[],
+      ["","Comuna","Todas","","Estado","Todos"],[],
+      ["","Total puntos","Realizados","Pendientes","Con duda","% avance","","Km ruta aprox.","Km restante aprox."],
+      ["",F(cnt(C)),F(cnt(C,"Realizado")),F(cnt(C,"Pendiente")),F(cnt(C,"*duda")),F("IF(B8=0,0,C8/B8)","0%"),"",km,kmF],
+      ["","Los indicadores responden al filtro de comuna. Km: estimación en línea recta ×1,3 al momento de exportar."],
+      ["","Avance por comuna"],["","Comuna","Total","Realizados","Pendientes","Con duda","% avance"]];
+    comunas.forEach((c,j)=>{const n=12+j,B=`$B${n}`;
+      dash.push(["",c,F(cnt(B)),F(cnt(B,"Realizado")),F(cnt(B,"Pendiente")),F(cnt(B,"*duda")),F(`IF(C${n}=0,0,D${n}/C${n})`,"0%")]);});
+    const u=11+comunas.length,t=u+1;
+    dash.push(["","TOTAL",F(`SUM(C12:C${u})`),F(`SUM(D12:D${u})`),F(`SUM(E12:E${u})`),F(`SUM(F12:F${u})`),F(`IF(C${t}=0,0,D${t}/C${t})`,"0%")]);
+    const wsDash=XLSX.utils.aoa_to_sheet(dash);
+    wsDash["!cols"]=[{wch:2},{wch:24},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:18},{wch:18}];
+    const listas=[["Comunas","Estados","","Criterio comuna"],["Todas","Todos","",F('IF(DASHBOARD!$C$5="Todas","*",DASHBOARD!$C$5)')],
+      ...comunas.map((c,j)=>[c,["Pendiente","Realizado","Con duda"][j]||""])];
+    if(comunas.length<3)["Pendiente","Realizado","Con duda"].slice(comunas.length).forEach(e=>listas.push(["",e]));
+    const wsList=XLSX.utils.aoa_to_sheet(listas);wsList["!cols"]=[{wch:24},{wch:14},{wch:4},{wch:16}];
+    const instr=[["CÓMO ACTIVAR LAS MACROS (Excel para Windows)"],[],
+      ["1. Abra este archivo en Excel de escritorio y use Archivo > Guardar como > «Libro de Excel habilitado para macros (*.xlsm)»."],
+      ["2. Presione Alt+F11 (editor de VBA) > Archivo > Importar archivo… y elija GeoInspecciones_macros.bas (viene en el mismo .zip)."],
+      ["3. Cierre el editor, presione Alt+F8, elija «Configurar_Libro» y Ejecutar. Se crean los botones, colores y listas desplegables."],
+      ["4. Guarde. Desde ahí use los botones del DASHBOARD y de DATOS."],[],
+      ["Si Excel bloquea las macros: cierre el archivo, clic derecho > Propiedades > marque «Desbloquear» > Aceptar, y ábralo de nuevo."],
+      ["Sin macros (celular, Excel web) el libro igual funciona: el DASHBOARD calcula el avance con fórmulas."],[],
+      ["Columnas que usan las macros (no cambie su nombre): N° RUTA, ESTADO INSPECCIÓN, Ubicación maps, COMUNA RM, FECHA REGISTRO, MOTIVO DUDA."],
+      ["Estados: Pendiente (rojo) · Realizado (verde) · Pendiente con duda / Realizado con duda (ámbar)."],
+      ["Este Excel se puede volver a cargar en la app GEO Inspecciones RM: recupera el N° de ruta, lo realizado y las dudas marcadas en terreno."]];
+    const wsInst=XLSX.utils.aoa_to_sheet(instr);wsInst["!cols"]=[{wch:130}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,wsDash,"DASHBOARD");XLSX.utils.book_append_sheet(wb,h.ws,"DATOS");
+    XLSX.utils.book_append_sheet(wb,wsList,"LISTAS");XLSX.utils.book_append_sheet(wb,wsInst,"INSTRUCCIONES");
+    const xlsx=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+    const nomArch=String(S.nombre||"registros").replace(/[^\x20-\x7E\u00A0-\u00FF]/g,"_");
+    const bas=VBA_PLANTILLA.replace("{{ARCHIVO}}",nomArch).replace("{{FECHA}}",fecha.replace(/[^\x20-\x7E\u00A0-\u00FF]/g," ")).replace(/\r?\n/g,"\r\n");
+    const zip=new JSZip(),nb=nomBase();
+    zip.file(`${nb}_dashboard.xlsx`,xlsx);
+    zip.file("GeoInspecciones_macros.bas",aCP1252(bas));
+    zip.file("LEEME.txt","\ufeff"+instr.map(x=>x[0]||"").join("\r\n"));
+    const blob=await zip.generateAsync({type:"blob",compression:"DEFLATE"});
+    descargar(`${nb}_dashboard_macros.zip`,blob);
+    toast(`Descargado: Excel con dashboard (${fmt(recs.length)} registros, ${fmt(comunas.length)} comunas) + macros VBA. Instrucciones en la hoja INSTRUCCIONES.`,7000);
+  }catch(e){console.error(e);toast("No se pudo generar el Excel con macros: "+e.message,6000);}
+  finally{btn.disabled=false;}
+}
+function exportarExcelReal(soloReg){
+  const recs=S.recs.filter(r=>!soloReg||ter(r));
+  if(!recs.length){toast("No hay registros con ubicación real para exportar.");return;}
+  const x=construirExcel(recs,soloReg?"_solo_ubicacion_real":"_ubicacion_real");descargar(x.nom,x.blob);
+  toast(`Excel generado: ${fmt(recs.length)} filas, ${fmt(x.maps)} con link en «Ubicación maps», ${fmt(x.links)} con ubicación real y ${fmt(recs.filter(obsTer).length)} con observación de terreno.`);
+}
+
+/* ---------- modo sin conexión: pendientes de envío y direcciones en espera */
+const pendientes=()=>S.recs.filter(r=>{const t=ter(r);return t&&t.pend;});
+function actualizarPend(){
+  const n=pendientes().length,dirs=S.recs.filter(r=>{const t=ter(r);return t&&t.dirPend;}).length;
+  $("nPend").textContent=fmt(n);$("btnEnviarPend").disabled=!n;
+  $("chipPend").textContent=`${fmt(n)} por enviar`;$("chipPend").classList.toggle("on",n>0);
+  $("infoPend").textContent=(n?"Se envían como Excel por WhatsApp, correo o Drive. ":"Todo lo registrado ya fue enviado. ")+
+    (dirs?`${fmt(dirs)} direcciones se completarán al recuperar conexión.`:"Lo que guardas queda en este equipo, con o sin señal.");
+}
+function sello(){const d=new Date(),z=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}`;}
+async function enviarPendientes(){
+  const recs=pendientes();if(!recs.length){toast("No hay registros pendientes.");return;}
+  const fEnvio=new Date().toLocaleString("es-CL");
+  const x=construirExcel(recs,"_pendientes_"+sello(),fEnvio);
+  const archivo=new File([x.blob],x.nom,{type:x.blob.type});
+  let compartido=false;
+  if(navigator.canShare&&navigator.canShare({files:[archivo]})){
+    try{await navigator.share({files:[archivo],title:"Registros de terreno",text:`${recs.length} registros de terreno — ${S.nombre}`});compartido=true;}
+    catch(e){if(e.name==="AbortError"){toast("Envío cancelado. Los registros siguen pendientes.");return;}}
+  }
+  if(!compartido)descargar(x.nom,x.blob);
+  // solo se marcan como enviados cuando el usuario lo confirma
+  setTimeout(()=>{
+    if(confirm(`¿Se ${compartido?"envió":"descargó"} correctamente el archivo con ${recs.length} registros?\nSi respondes Aceptar se marcarán como enviados.`)){
+      recs.forEach(r=>{const t=ter(r);t.pend=false;t.enviado=fEnvio;});
+      guardarTerrenoLocal();render(false);toast(`${recs.length} registros marcados como enviados.`);
+    }else toast("Los registros siguen pendientes.");
+  },compartido?100:900);
+}
+$("btnEnviarPend").onclick=enviarPendientes;
+let colaActiva=false;
+async function procesarColaDirecciones(){
+  if(colaActiva||!navigator.onLine||!S.recs.length)return;colaActiva=true;
+  let hechas=0;
+  try{for(const r of S.recs){const t=ter(r);if(!t||!t.dirPend||t.lat==null)continue;
+      if(!navigator.onLine)break;
+      try{const txt=await direccionDesde(t.lat,t.lon);if(txt&&!t.dir){t.dir=txt;t.dirAuto=true;}t.dirPend=false;hechas++;guardarTerrenoLocal();}
+      catch(e){break;}
+      await new Promise(ok=>setTimeout(ok,1100));      // política de Nominatim: 1 consulta por segundo
+    }}
+  finally{colaActiva=false;}
+  if(hechas){render(false);toast(`${hechas} direcciones completadas automáticamente desde el GPS. Revísalas en la tabla.`,5000);}
+}
+function estadoRed(){document.body.classList.toggle("offline",!navigator.onLine);}
+addEventListener("offline",()=>{estadoRed();toast("Sin conexión: puedes seguir registrando ubicaciones y observaciones. Se guardan en este equipo.",6000);});
+addEventListener("online",async()=>{estadoRed();
+  await procesarColaDirecciones();
+  const n=pendientes().length;
+  if(n){const t=$("toast");t.innerHTML=`Conexión recuperada: tienes ${n} registros pendientes. <button type="button">Enviar ahora</button>`;
+    t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",15000);
+    t.querySelector("button").onclick=()=>{t.style.display="none";enviarPendientes();};}
+  else toast("Conexión recuperada.");});
+estadoRed();
+$("btnXlsReal").onclick=()=>exportarExcelReal(false);
+$("btnXlsSoloReal").onclick=()=>exportarExcelReal(true);
+$("btnXlsVBA").onclick=exportarDashboardVBA;
+$("btnRespaldo").onclick=()=>descargar((S.nombre||"terreno")+"_respaldo_terreno.json",
+  JSON.stringify({tipo:"geoRM_terreno",archivo:S.nombre,hoja:S.hoja,fecha:new Date().toISOString(),datos:S.terreno,ruta:S.ruta},null,1),"application/json");
+$("btnRestaurar").onclick=()=>$("respArchivo").click();
+$("respArchivo").onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(txt=>{try{const j=JSON.parse(txt);
+  if(j.tipo!=="geoRM_terreno")throw 0;if(!S.recs.length){toast("Primero carga el mismo Excel del respaldo.");return;}
+  if(j.archivo!==S.nombre&&!confirm(`El respaldo es del archivo «${j.archivo}» y tienes cargado «${S.nombre}». ¿Restaurar igual?`))return;
+  let n=0;for(const [k,v] of Object.entries(j.datos||{})){if(!S.terreno[k]||confirm(`La fila ${k.split("|")[0]} ya tiene ubicación real. ¿Reemplazarla por la del respaldo?`)){S.terreno[k]=v;n++;}}
+  if(j.ruta&&Object.keys(j.ruta).length){S.ruta=j.ruta;guardarRuta();}
+  guardarTerrenoLocal();render(false);toast(`${n} registros de terreno restaurados${j.ruta?" junto con el orden de ruta":""}.`);
+}catch(err){toast("El archivo no es un respaldo de terreno válido.");}});e.target.value="";};
+
+
+/* ============================================================ orden de ruta y avance de inspección */
+const claveRuta=()=>"geoRM_ruta|"+S.nombre+"|"+S.hoja;
+function guardarRuta(){try{localStorage.setItem(claveRuta(),JSON.stringify(S.ruta));}catch(e){}}
+function cargarRuta(){S.ruta={};try{S.ruta=JSON.parse(localStorage.getItem(claveRuta())||"{}");}catch(e){}
+  // un Excel exportado antes por la app trae la columna N° RUTA
+  const h=S.headers.find(x=>norm(x)===norm("N° RUTA"));
+  if(h&&!Object.values(S.ruta).some(v=>v.o!=null))S.filas.forEach(f=>{const n=num(f[h]);if(n!==null)(S.ruta[claveFila(f)]=S.ruta[claveFila(f)]||{}).o=n;});}
+const ordenDe=r=>{const x=S.ruta[claveFila(r.fila)];return x&&x.o!=null?x.o:null;};
+const setOrden=(r,n)=>{const k=claveFila(r.fila);(S.ruta[k]=S.ruta[k]||{}).o=n;};
+const rutaLista=()=>S.recs.filter(r=>ordenDe(r)!=null&&puntoDe(r)).sort((a,b)=>ordenDe(a)-ordenDe(b));
+function renumerar(lista){Object.values(S.ruta).forEach(v=>delete v.o);lista.forEach((r,i)=>setOrden(r,i+1));guardarRuta();}
+function valorSec(r){const h=$("cSec").value;if(!h)return r.fila.__fila;const n=num(r.fila[h]);return n===null?1e12:n;}
+function ordenSecuencia(aviso){
+  const pts=S.recs.filter(r=>puntoDe(r)).sort((a,b)=>(valorSec(a)-valorSec(b))||(a.fila.__fila-b.fila.__fila));
+  renumerar(pts);
+  if(aviso){render(false);toast(`Orden según ${$("cSec").value?`la columna «${$("cSec").value}»`:"las filas del Excel"}: ${fmt(pts.length)} puntos.`);}}
+// todo punto con ubicación recibe un N°; los que aparecen después (geocodificados, registrados en terreno) van al final
+function asegurarOrden(){if(!S.recs.length)return;let max=0;const nuevos=[];
+  S.recs.forEach(r=>{const o=ordenDe(r);if(o!=null)max=Math.max(max,o);else if(puntoDe(r))nuevos.push(r);});
+  if(!nuevos.length)return;
+  if(!max){ordenSecuencia(false);return;}
+  nuevos.sort((a,b)=>(valorSec(a)-valorSec(b))||(a.fila.__fila-b.fila.__fila)).forEach(r=>setOrden(r,++max));guardarRuta();}
+function cambiarOrden(i,n){const r=S.recs[i],l=rutaLista(),a=l.indexOf(r);n=parseInt(n,10);
+  if(a<0||!(n>=1)){render(false);return;}
+  l.splice(a,1);l.splice(Math.min(n,l.length+1)-1,0,r);renumerar(l);mapa.closePopup();render(false);
+  toast(`${r.nombre} queda como N° ${ordenDe(r)} de la ruta.`);}
+
+/* --- estado de cada punto */
+const realizado=r=>{const t=ter(r);return !!(t&&(t.insp||t.dir||t.lat!=null));};
+function motivosDuda(r){
+  const t=ter(r),m=[],conReal=!!(t&&t.lat!=null);
+  if(conReal){
+    const d=difReal(r);if(d!==""&&d>S.umb.dist)m.push(`Ubicación real a ${fmt(d)} m de la coordenada del documento`);
+    if(t.prec!=null&&t.prec>S.umb.prec)m.push(`Precisión GPS baja (±${Math.round(t.prec)} m)`);
+    if(!enRM(t.lat,t.lon))m.push("Ubicación real fuera de la Región Metropolitana");
+  } else if(!realizado(r)){   // aún no visitado: dudas de la coordenada del documento
+    if(r.nivel!=="ok")r.obs.filter(o=>!/^✓/.test(o)).forEach(o=>m.push(o.replace(/^[⚠✕]\s*/,"")));
+    if(r.obs.some(o=>/Corregida con autorización/.test(o)))m.push("Coordenada del documento corregida (inversión o signo)");
+  }
+  if(t&&t.dirAuto)m.push("Dirección obtenida automáticamente desde el GPS");
+  if(t&&t.duda)m.push("Marcado en terreno: "+t.duda);
+  return m;}
+function estadoInsp(r){const m=motivosDuda(r),v=(S.ruta[claveFila(r.fila)]||{}).v;
+  const sinValidar=v?m.filter(x=>!v.m.includes(x)):m;
+  r.motivos=sinValidar;r.validado=v&&m.length&&!sinValidar.length?v.f:"";
+  return sinValidar.length?"duda":(realizado(r)?"ok":"pend");}
+function calcInsp(){S.recs.forEach(r=>r.insp=estadoInsp(r));}
+const txtInsp=r=>r.insp==="duda"?(realizado(r)?"Realizado con duda":"Pendiente con duda"):INSP[r.insp||"pend"].t;
+
+function marcarRealizado(i,v){const r=S.recs[i],k=claveFila(r.fila);let t=S.terreno[k];
+  if(v){if(!t)t=S.terreno[k]={dir:"",lat:null,lon:null,prec:null,obs:"",duda:""};t.insp=true;}
+  else{if(!t)return;t.insp=false;
+    if(!t.dir&&t.lat==null&&!t.obs&&!t.duda){delete S.terreno[k];guardarTerrenoLocal();mapa.closePopup();render(false);toast(`${r.nombre} vuelve a pendiente.`);return;}}
+  t.fecha=new Date().toLocaleString("es-CL");t.pend=true;t.sinRed=!navigator.onLine;t.enviado="";
+  guardarTerrenoLocal();mapa.closePopup();render(false);
+  if(v)toastBtn(`N° ${ordenDe(r)??"—"} ${r.nombre}: inspección realizada.`,"Siguiente ▶",siguientePendiente);else toast(`${r.nombre} vuelve a pendiente.`);}
+function validarDuda(i){const r=S.recs[i],m=motivosDuda(r);if(!m.length)return;
+  if(!confirm(`¿Validar este punto?\n\n• ${m.join("\n• ")}\n\nQuedará ${realizado(r)?"en verde (realizado)":"en rojo (pendiente)"} y se registrará la fecha de validación.`))return;
+  const k=claveFila(r.fila);(S.ruta[k]=S.ruta[k]||{}).v={f:new Date().toLocaleString("es-CL"),m};guardarRuta();
+  const t=S.terreno[k];if(t){t.pend=true;t.enviado="";guardarTerrenoLocal();}
+  mapa.closePopup();render(false);toast("Duda validada.");}
+function abrirDuda(i){abrirTerreno(i);$("tDudaChk").checked=true;$("tDuda").hidden=false;setTimeout(()=>$("tDuda").focus(),50);}
+Object.assign(window,{cambiarOrden,marcarRealizado,validarDuda,abrirDuda});
+function toastBtn(msg,etq,fn,ms){const t=$("toast");t.innerHTML=`${escH(msg)} <button type="button">${escH(etq)}</button>`;t.style.display="block";
+  clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",ms||7000);t.querySelector("button").onclick=()=>{t.style.display="none";fn();};}
+
+/* --- optimización: vecino más cercano + 2-opt (distancia en línea recta) */
+function rutaCorta(pts,inicio){
+  const n=pts.length;if(n<2)return pts.map((_,i)=>i);
+  const P=inicio?[...pts,inicio]:pts,N=P.length;
+  const D=N<=1800?new Float32Array(N*N):null;
+  if(D)for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const x=dist(P[i],P[j]);D[i*N+j]=D[j*N+i]=x;}
+  const d=(i,j)=>D?D[i*N+j]:dist(P[i],P[j]);
+  const s=inicio?n:0,usado=new Uint8Array(N),cam=[s];usado[s]=1;let act=s;
+  for(let k=1;k<N;k++){let b=-1,bd=Infinity;for(let j=0;j<N;j++)if(!usado[j]){const x=d(act,j);if(x<bd){bd=x;b=j;}}usado[b]=1;cam.push(b);act=b;}
+  const t0=performance.now();let mejora=true;
+  while(mejora&&performance.now()-t0<2500){mejora=false;
+    for(let i=1;i<N-1;i++){
+      for(let j=i+1;j<N;j++){const a=cam[i-1],b=cam[i],c=cam[j],e=j+1<N?cam[j+1]:-1;
+        const delta=d(a,c)-d(a,b)+(e>=0?d(b,e)-d(c,e):0);
+        if(delta<-1e-9){for(let x=i,y=j;x<y;x++,y--){const tmp=cam[x];cam[x]=cam[y];cam[y]=tmp;}mejora=true;}}
+      if(performance.now()-t0>2500)break;}}
+  return inicio?cam.slice(1):cam;}
+const xy=r=>{const p=puntoDe(r);return [p.lat,p.lon];};
+function largo(lista,inicio){let km=0,prev=inicio||null;lista.forEach(r=>{const q=xy(r);if(prev)km+=dist(prev,q);prev=q;});return km;}
+const fmtKm=n=>n.toLocaleString("es-CL",{maximumFractionDigits:1});
+const fmtMin=m=>m<60?`${Math.round(m)} min`:`${Math.floor(m/60)} h ${String(Math.round(m%60)).padStart(2,"0")} min`;
+function puntoInicio(){const modo=$("rInicio").value;
+  if(modo==="base"){const [la,lo]=coordComb($("rBase").value);
+    if(la===null||lo===null||!enChile(la,lo)){toast("Ingresa las coordenadas de la base. Ejemplo: -33.437800, -70.650500",5000);return Promise.resolve(undefined);}
+    return Promise.resolve([la,lo]);}
+  if(modo==="gps")return new Promise(ok=>{if(!navigator.geolocation){toast("Este equipo no permite usar el GPS.");ok(undefined);return;}
+    toast("Obteniendo tu ubicación…",10000);
+    navigator.geolocation.getCurrentPosition(p=>ok([p.coords.latitude,p.coords.longitude]),
+      ()=>{toast("No se pudo obtener tu ubicación. Revisa el permiso o elige otro punto de partida.",5000);ok(undefined);},
+      {enableHighAccuracy:true,timeout:15000,maximumAge:60000});});
+  return Promise.resolve(null);}
+async function optimizar(){
+  const ini=await puntoInicio();if(ini===undefined)return;
+  asegurarOrden();calcInsp();
+  const todos=rutaLista(),vis=new Set(filtrosActivos()?S.filtrados:S.recs);
+  const alcance=todos.filter(r=>vis.has(r));
+  const fijos=$("rDejarHechos").checked?alcance.filter(r=>r.insp==="ok"):[];
+  const sFijos=new Set(fijos),mover=alcance.filter(r=>!sFijos.has(r));
+  if(mover.length<2){toast("Hay menos de 2 puntos por ordenar con los filtros actuales.");return;}
+  const inicio=ini||(fijos.length?xy(fijos[fijos.length-1]):null);
+  $("btnOptimizar").disabled=true;toast(`Calculando la ruta de ${fmt(mover.length)} puntos…`,10000);
+  await new Promise(ok=>setTimeout(ok,40));
+  const antes=largo(mover,inicio),nueva=rutaCorta(mover.map(xy),inicio).map(i=>mover[i]),despues=largo(nueva,inicio);
+  const sAlc=new Set(alcance);
+  renumerar([...fijos,...nueva,...todos.filter(r=>!sAlc.has(r))]);
+  $("btnOptimizar").disabled=false;mapa.closePopup();render(false);
+  const ah=antes>0?Math.round((1-despues/antes)*100):0;
+  toast(`Ruta optimizada: ${fmt(nueva.length)} puntos, ${fmtKm(despues*FACTOR_VIAL)} km aprox.`+(ah>0?` · ${ah}% más corta que el orden anterior.`:"."),7000);}
+function siguientePendiente(){
+  const r=rutaLista().filter(x=>S.mk.has(x)).find(x=>x.insp!=="ok");
+  if(!r){toast(rutaLista().some(x=>x.insp!=="ok")?"Los pendientes están ocultos por los filtros. Quita los filtros para verlos.":"No quedan puntos pendientes en la ruta. ✔",5000);return;}
+  const m=S.mk.get(r);$("mapa").scrollIntoView({behavior:"smooth",block:"center"});
+  if(capa.zoomToShowLayer)capa.zoomToShowLayer(m,()=>m.openPopup());
+  else{mapa.setView(m.getLatLng(),Math.max(mapa.getZoom(),16));m.openPopup();}}
+function navegarProximos(){
+  const l=rutaLista().filter(r=>r.insp!=="ok").slice(0,10);
+  if(!l.length){toast("No quedan puntos pendientes en la ruta.");return;}
+  const c=r=>{const q=xy(r);return `${q[0].toFixed(6)},${q[1].toFixed(6)}`;};
+  const u=new URLSearchParams({api:"1",destination:c(l[l.length-1]),travelmode:"driving"});
+  if(l.length>1)u.set("waypoints",l.slice(0,-1).map(c).join("|"));
+  window.open("https://www.google.com/maps/dir/?"+u.toString(),"_blank","noopener");
+  toast(`Google Maps abre la navegación por los N° ${ordenDe(l[0])} a ${ordenDe(l[l.length-1])}.`,5000);}
+function avance(){
+  const el=$("avance");el.hidden=!S.recs.length;
+  const c={pend:0,ok:0,duda:0};S.recs.forEach(r=>c[r.insp||"pend"]++);const tot=S.recs.length||1;
+  $("aPend").textContent=fmt(c.pend);$("aOk").textContent=fmt(c.ok);$("aDuda").textContent=fmt(c.duda);
+  $("aPct").textContent=Math.round(c.ok/tot*100)+"%";
+  $("aBarra").innerHTML=["ok","duda","pend"].map(k=>`<span style="width:${c[k]/tot*100}%;background:${INSP[k].c}"></span>`).join("");
+  el.querySelectorAll(".e").forEach(b=>b.classList.toggle("on",$("fInsp").value===b.dataset.f));
+  const l=rutaLista(),km=largo(l)*FACTOR_VIAL,falta=l.filter(r=>r.insp!=="ok"),i0=l.findIndex(r=>r.insp!=="ok");
+  const kmF=largo(falta,i0>0?xy(l[i0-1]):null)*FACTOR_VIAL,pl=n=>`${fmt(n)} punto${n===1?"":"s"}`;
+  $("aKm").textContent=l.length>1?`Ruta de ${pl(l.length)}: ${fmtKm(km)} km aprox. (${fmtMin(km/VEL_KMH*60)} de traslado)`+
+    (falta.length&&falta.length<l.length?` · Restante: ${pl(falta.length)}, ${fmtKm(kmF)} km (${fmtMin(kmF/VEL_KMH*60)})`:"")+
+    ` · estimación en línea recta ×${String(FACTOR_VIAL).replace(".",",")} a ${VEL_KMH} km/h`:"";
+  const hay=l.length>0,quedan=falta.length>0;
+  $("btnOptimizar").disabled=l.length<2;$("btnOrdenSec").disabled=!hay;$("btnSiguiente").disabled=!quedan;$("btnNavegar").disabled=!quedan;
+  if(hay)marcar("pR");
+}
+$("btnOptimizar").onclick=optimizar;
+$("btnOrdenSec").onclick=()=>{if(confirm(`¿Reemplazar el orden actual por ${$("cSec").value?`la columna «${$("cSec").value}»`:"el orden de filas del Excel"}?`))ordenSecuencia(true);};
+$("btnSiguiente").onclick=siguientePendiente;
+$("btnNavegar").onclick=navegarProximos;
+document.querySelectorAll("#avance .e").forEach(b=>b.onclick=()=>{$("fInsp").value=$("fInsp").value===b.dataset.f?"":b.dataset.f;render(false);});
+$("rInicio").onchange=()=>{$("rBase").hidden=$("rInicio").value!=="base";if(!$("rBase").hidden)$("rBase").focus();};
+$("rBase").addEventListener("change",()=>{try{localStorage.setItem("geoRM_base",$("rBase").value.trim());}catch(e){}});
+try{const b=localStorage.getItem("geoRM_base");if(b)$("rBase").value=b;
+  const u=JSON.parse(localStorage.getItem("geoRM_umbrales")||"null");if(u){S.umb=Object.assign(S.umb,u);}}catch(e){}
+$("uDist").value=S.umb.dist;$("uPrec").value=S.umb.prec;
+["uDist","uPrec"].forEach(id=>$(id).addEventListener("change",()=>{
+  const d=+$("uDist").value,p=+$("uPrec").value;S.umb.dist=d>0?d:150;S.umb.prec=p>0?p:30;$("uDist").value=S.umb.dist;$("uPrec").value=S.umb.prec;
+  try{localStorage.setItem("geoRM_umbrales",JSON.stringify(S.umb));}catch(e){}render(false);}));
+
+/* ============================================================ limpiar y demo */
+$("btnLimpiar").onclick=()=>{if(S.recs.length&&!confirm("¿Reiniciar el proyecto? Se borran los datos cargados, filtros y configuración temporal. Las ubicaciones reales guardadas en este equipo se conservan y vuelven a aparecer al cargar el mismo archivo."))return;
+  Object.assign(S,{wb:null,nombre:"",hoja:"",headers:[],filas:[],recs:[],cfg:{},colores:{},filtrados:[],pagina:300,orden:{col:"ordenRuta",asc:true},terreno:{},ruta:{},mk:new Map()});
+  ["cLat","cLon","cCoord","cDir","cCom","cEst","cAlt","fComuna","fEstado","fFuente","fCol","fVal","gAgrupar","selHoja","cSec"].forEach(id=>$(id).innerHTML="");$("fInsp").value="";
+  $("tplNombre").value="";$("buscar").value="";$("archivo").value="";$("infoArchivo").textContent="";$("resultado").style.display="none";
+  $("geoEstado").textContent="";$("prog").style.display="none";$("hdrArchivo").textContent="Santiago y Región Metropolitana · Excel → mapa → KML/KMZ";
+  document.querySelectorAll("details.paso").forEach(d=>{delete d.dataset.listo;d.open=d.id==="p1";});
+  ["btnProcesar","btnGeo","btnInvertir","btnCfgGuardar"].forEach(id=>$(id).disabled=true);
+  render(false);mapa.setView([-33.45,-70.66],10);};
+$("btnDemo").onclick=()=>{
+  // Datos DEMO: coordenadas ilustrativas (centros comunales aproximados), no corresponden a instalaciones reales.
+  const d=[["ID","N° POSTE","DIRECCIÓN","COMUNA","ESTADO","HALLAZGO","CRITICIDAD","LATITUD","LONGITUD"],
+    ["DEMO-001","P-1001","Av. Grecia 1234","Ñuñoa","PENDIENTE","Cruceta deteriorada","Alta",-33.4560,-70.5970],
+    ["DEMO-002","P-1002","Av. Pajaritos 4567","Maipú","FINALIZADA","Sin hallazgo","Baja",-33.5100,-70.7570],
+    ["DEMO-003","P-1003","Av. Recoleta 789","Recoleta","EN PROCESO","Aislador quebrado","Media",-33.4060,-70.6400],
+    ["DEMO-004","P-1004","Av. Vicuña Mackenna 6100","La Florida","ASIGNADA","Poste inclinado","Alta",-70.5980,-33.5230],
+    ["DEMO-005","P-1005","Av. Concha y Toro 1500","Puente Alto","SIN RESPUESTA","Tierra cortada","Media","",""],
+    ["DEMO-006","P-1006","Av. Libertador Bernardo O'Higgins 3000","Estación Central","PENDIENTE","Conductor flojo","Alta","",""]];
+  S.wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(S.wb,XLSX.utils.aoa_to_sheet(d),"DEMO");S.nombre="DEMO_INSPECCIONES_RM";prepararHojas();};
+render(false);
+</script>
+
+<dialog id="dlgInstalar">
+  <h2 style="font-family:'Barlow Condensed','Arial Narrow',sans-serif;margin:0">Instalar en el iPhone</h2>
+  <ol style="padding-left:20px;line-height:1.7">
+    <li>Abre esta página en <b>Safari</b>.</li>
+    <li>Toca el botón <b>Compartir</b> (cuadrado con flecha hacia arriba).</li>
+    <li>Elige <b>Agregar a pantalla de inicio</b> y luego <b>Agregar</b>.</li>
+  </ol>
+  <div class="fila"><button class="btn prim" onclick="this.closest('dialog').close()">Entendido</button></div>
+</dialog>
+<script>
+"use strict";
+/* ============================================================ PWA: instalación, sin conexión y actualizaciones */
+(function(){
+  const hdr=document.querySelector("header"), tema=document.getElementById("btnTema");
+  const bInst=document.createElement("button");bInst.id="btnInstalar";bInst.innerHTML="⬇ <span class='txt'>Instalar app</span>";bInst.title="Instalar la aplicación en este equipo";
+  hdr.insertBefore(bInst,tema);
+
+  const instalada=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+  const esIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  let aviso=null;
+  addEventListener("beforeinstallprompt",e=>{e.preventDefault();aviso=e;if(!instalada)bInst.style.display="inline-block";});
+  if(esIOS&&!instalada)bInst.style.display="inline-block";
+  bInst.onclick=async()=>{
+    if(aviso){aviso.prompt();const r=await aviso.userChoice;aviso=null;bInst.style.display="none";
+      if(r.outcome==="accepted")toast("App instalada. Búscala en tu pantalla de inicio.");}
+    else if(esIOS)document.getElementById("dlgInstalar").showModal();
+  };
+  addEventListener("appinstalled",()=>{bInst.style.display="none";});
+
+  // Pedir almacenamiento persistente: protege las ubicaciones guardadas de la limpieza automática del navegador
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+
+  if(!("serviceWorker" in navigator)||location.protocol==="file:")return;
+  // Solo se recarga cuando el usuario acepta una actualización (no en la primera instalación,
+  // para no borrar un formulario a medio escribir)
+  let recargando=false,aceptoActualizar=false;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!aceptoActualizar||recargando)return;recargando=true;location.reload();});
+  navigator.serviceWorker.register("sw.js").then(reg=>{
+    const ofrecer=w=>{const t=document.getElementById("toast");
+      t.innerHTML="Hay una nueva versión de la app. <button type='button'>Actualizar</button>";t.style.display="block";clearTimeout(t._h);
+      t.querySelector("button").onclick=()=>{t.style.display="none";aceptoActualizar=true;w.postMessage("actualizar");};};
+    if(reg.waiting&&navigator.serviceWorker.controller)ofrecer(reg.waiting);
+    reg.addEventListener("updatefound",()=>{const w=reg.installing;
+      w.addEventListener("statechange",()=>{if(w.state==="installed"&&navigator.serviceWorker.controller)ofrecer(w);});});
+    setInterval(()=>reg.update().catch(()=>{}),60*60*1000);
+  }).catch(err=>console.warn("Service worker no registrado:",err));
+})();
+</script>
+</body>
+</html>
